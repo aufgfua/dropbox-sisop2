@@ -14,17 +14,26 @@ int main(int argc, char *argv[])
 	socklen_t clilen;
 	char buffer[256];
 	struct sockaddr_in serv_addr, cli_addr;
+
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        printf("ERROR opening socket");
+	if (sockfd == -1) {
+
+		printf("ERROR opening socket");
 	
+	}	
+
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(PORT);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(serv_addr.sin_zero), 8);     
+
+	bzero(&(serv_addr.sin_zero), 8);
+
+	int bind_return = bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));     
     
-	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
+	if (bind_return < 0) {
 		printf("ERROR on binding");
+	}
 	
 	listen(sockfd, 5);
 	
