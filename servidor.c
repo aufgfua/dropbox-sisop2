@@ -16,10 +16,10 @@
 #define FALSE 0
 #define bool int
 
-typedef struct STRUCT_CONNECTION_DATA {
+typedef struct STRUCT_CONNECTION_DATA
+{
 	int socket_fd, socket_id;
 } CONNECTION_DATA;
-
 
 // TODO multiple connections get misconfigured and server thinks all of them are the same. Fix that
 
@@ -43,11 +43,12 @@ void *read_from_client(void *data)
 			printf("ERROR reading from socket");
 		}
 
-		if(strlen(buffer) == 0){
+		if (strlen(buffer) == 0)
+		{
 			break;
 		}
 
-		printf("%d - Here is the message: %s\n", conn_data->socket_id ,buffer);
+		printf("%d - Here is the message: %s\n", conn_data->socket_id, buffer);
 
 		/* write in the socket */
 		write_len = write(conn_data->socket_fd, "I got your message", 18);
@@ -95,7 +96,6 @@ int main(int argc, char *argv[])
 	printf("Server listening on port %d\n", PORT);
 
 	cli_len = sizeof(struct sockaddr_in);
-
 
 	while (TRUE)
 	{

@@ -18,74 +18,75 @@
 
 int main(int argc, char *argv[])
 {
-  int sock_fd, read_len, write_len;
-  struct sockaddr_in serv_addr;
-  struct hostent *server;
+	int sock_fd, read_len, write_len;
 
-  char write_buffer[BUFFER_SIZE], read_buffer[BUFFER_SIZE];
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
 
-  if (argc < 2)
-  {
-    fprintf(stderr, "usage '%s hostname'\n", argv[0]);
-    exit(0);
-  }
+	char write_buffer[BUFFER_SIZE], read_buffer[BUFFER_SIZE];
 
-  server = gethostbyname(argv[1]);
-  if (server == NULL)
-  {
-    fprintf(stderr, "ERROR, no such host\n");
-    exit(0);
-  }
+	if (argc < 2)
+	{
+		fprintf(stderr, "usage '%s hostname'\n", argv[0]);
+		exit(0);
+	}
 
-  sock_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
-  if (sock_fd == -1)
-  {
-    printf("ERROR opening socket\n");
-  }
+	server = gethostbyname(argv[1]);
+	if (server == NULL)
+	{
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
 
-  serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(PORT);
-  serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+	sock_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
+	if (sock_fd == -1)
+	{
+		printf("ERROR opening socket\n");
+	}
 
-  bzero(&(serv_addr.sin_zero), BYTE_SIZE);
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
 
-  int conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-  if (conn_return < 0)
-  {
-    printf("ERROR connecting\n");
-  }
+	bzero(&(serv_addr.sin_zero), BYTE_SIZE);
 
-  while (TRUE)
-  {
-    printf("Enter the message: ");
-    bzero(write_buffer, BUFFER_SIZE);
-    fgets(write_buffer, BUFFER_SIZE, stdin);
+	int conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+	if (conn_return < 0)
+	{
+		printf("ERROR connecting\n");
+	}
 
-    if(strlen(write_buffer) == 0)
-    {
-      break;
-    }
+	while (TRUE)
+	{
+		printf("Enter the message: ");
+		bzero(write_buffer, BUFFER_SIZE);
+		fgets(write_buffer, BUFFER_SIZE, stdin);
 
-    /* write in the socket */
-    write_len = write(sock_fd, write_buffer, strlen(write_buffer));
-    if (write_len < 0)
-    {
-      printf("ERROR writing to socket\n");
-    }
+		if (strlen(write_buffer) == 0)
+		{
+			break;
+		}
 
-    bzero(read_buffer, BUFFER_SIZE);
+		/* write in the socket */
+		write_len = write(sock_fd, write_buffer, strlen(write_buffer));
+		if (write_len < 0)
+		{
+			printf("ERROR writing to socket\n");
+		}
 
-    /* read from the socket */
-    read_len = read(sock_fd, read_buffer, BUFFER_SIZE);
-    if (read_len < 0)
-    {
-      printf("ERROR reading from socket\n");
-    }
+		bzero(read_buffer, BUFFER_SIZE);
 
-    printf("%s\n", read_buffer);
-  }
+		/* read from the socket */
+		read_len = read(sock_fd, read_buffer, BUFFER_SIZE);
+		if (read_len < 0)
+		{
+			printf("ERROR reading from socket\n");
+		}
 
-  close(sock_fd);
+		printf("%s\n", read_buffer);
+	}
 
-  return 0;
+	close(sock_fd);
+
+	return 0;
 }
