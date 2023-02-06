@@ -19,50 +19,40 @@
 
 typedef struct STRUCT_CONNECTION_DATA
 {
-	int socket_fd, socket_id;
+	int socket_fd, connection_id;
 } CONNECTION_DATA;
 
 int connection_id = 0;
 
-// TODO multiple connections get misconfigured and server thinks all of them are the same. Fix that
-
-void *read_from_client(void *data)
+void *connection_loop(void *data)
 {
 	CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
-	int read_len, write_len;
-	char buffer[BUFFER_SIZE];
-	bool first_run = TRUE;
 
-	while (strlen(buffer) != 0 || first_run)
+	int connection_id = conn_data->connection_id;
+	int socket_fd = conn_data->socket_fd;
+
+	while (TRUE)
 	{
-		first_run = FALSE;
-		bzero(buffer, BUFFER_SIZE);
-
-		/* read from the socket */
-		read_len = read(conn_data->socket_fd, buffer, BUFFER_SIZE);
-
-		if (read_len < 0)
-		{
-			printf("ERROR reading from socket");
-		}
-
-		if (strlen(buffer) == 0)
+		char *buffer = read_all_bytes(socket_fd, sizeof(PROCEDURE_SELECT));
+		if (buffer == NULL)
 		{
 			break;
 		}
 
-		printf("%d - Here is the message: %s\n", conn_data->socket_id, buffer);
+		PROCEDURE_SELECT *procedure = (PROCEDURE_SELECT *)buffer;
 
-		/* write in the socket */
-		write_len = write(conn_data->socket_fd, "I got your message", 18);
-
-		if (write_len < 0)
+		switch (procedure->proc_id)
 		{
-			printf("ERROR writing to socket");
+		case 1:
+			printf("Procedure 1 received\n");
+			break;
+		case 2:
+			printf("Procedure 2 received\n");
+			break;
 		}
 	}
 
-	printf("Connection %d closed\n", conn_data->socket_id);
+	printf("Connection %d closed\n", conn_data->connection_id);
 	close(conn_data->socket_fd);
 
 	return NULL;
@@ -79,7 +69,8 @@ int inicializar_servidor()
 
 	if (socket_fd == -1)
 	{
-		printf("ERROR opening socket");
+		printf("ERROR opening socket\n");
+		exit(0);
 	}
 
 	serv_addr.sin_family = AF_INET;
@@ -92,7 +83,8 @@ int inicializar_servidor()
 
 	if (bind_return < 0)
 	{
-		printf("ERROR on binding");
+		printf("ERROR on binding\n");
+		exit(0);
 	}
 
 	listen(socket_fd, MAX_CONNECTIONS);
@@ -123,12 +115,12 @@ void gerenciador_de_conexoes(int socket_fd)
 			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
 
 			new_conn_data->socket_fd = new_conn_socket_fd;
-			new_conn_data->socket_id = connection_id;
+			new_conn_data->connection_id = connection_id;
 			connection_id++;
 
-			printf("Connection %d accepted\n", new_conn_data->socket_id);
+			printf("Connection %d accepted\n", new_conn_data->connection_id);
 
-			pthread_create(&connection_thread, NULL, read_from_client, (void *)new_conn_data);
+			pthread_create(&connection_thread, NULL, connection_loop, (void *)new_conn_data);
 		}
 	}
 }

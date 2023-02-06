@@ -33,6 +33,7 @@ int conectar_socket(struct hostent *server, int port, char *username)
 	if (sock_fd == -1)
 	{
 		printf("ERROR opening socket\n");
+		exit(0);
 	}
 
 	serv_addr.sin_family = AF_INET;
@@ -45,43 +46,24 @@ int conectar_socket(struct hostent *server, int port, char *username)
 	if (conn_return < 0)
 	{
 		printf("ERROR connecting\n");
+		exit(0);
 	}
 	return sock_fd;
 }
 
 void gerencia_conexao(int sock_fd)
 {
-	int read_len, write_len;
-	char write_buffer[BUFFER_SIZE], read_buffer[BUFFER_SIZE];
-
 	while (TRUE)
 	{
-		printf("Enter the message: ");
-		bzero(write_buffer, BUFFER_SIZE);
-		fgets(write_buffer, BUFFER_SIZE, stdin);
+		PROCEDURE_SELECT procedure;
+		printf("Select procedure: ");
 
-		if (strlen(write_buffer) == 0)
-		{
-			break;
-		}
+		int proc = 0;
+		scanf("%d", &proc);
 
-		/* write in the socket */
-		write_len = write(sock_fd, write_buffer, strlen(write_buffer));
-		if (write_len < 0)
-		{
-			printf("ERROR writing to socket\n");
-		}
+		procedure.proc_id = proc;
 
-		bzero(read_buffer, BUFFER_SIZE);
-
-		/* read from the socket */
-		read_len = read(sock_fd, read_buffer, BUFFER_SIZE);
-		if (read_len < 0)
-		{
-			printf("ERROR reading from socket\n");
-		}
-
-		printf("%s\n", read_buffer);
+		write_all_bytes(sock_fd, (char *)&procedure, sizeof(PROCEDURE_SELECT));
 	}
 }
 
