@@ -16,22 +16,12 @@
 #define FALSE 0
 #define bool int
 
-int main(int argc, char *argv[])
+int conectar_socket(struct hostent *server, int port, char *username)
 {
 	int sock_fd, read_len, write_len;
 
 	struct sockaddr_in serv_addr;
-	struct hostent *server;
 
-	char write_buffer[BUFFER_SIZE], read_buffer[BUFFER_SIZE];
-
-	if (argc < 2)
-	{
-		fprintf(stderr, "usage '%s hostname'\n", argv[0]);
-		exit(0);
-	}
-
-	server = gethostbyname(argv[1]);
 	if (server == NULL)
 	{
 		fprintf(stderr, "ERROR, no such host\n");
@@ -45,7 +35,7 @@ int main(int argc, char *argv[])
 	}
 
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_port = htons(port);
 	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
 
 	bzero(&(serv_addr.sin_zero), BYTE_SIZE);
@@ -55,6 +45,13 @@ int main(int argc, char *argv[])
 	{
 		printf("ERROR connecting\n");
 	}
+	return sock_fd;
+}
+
+void gerencia_conexao(int sock_fd)
+{
+	int read_len, write_len;
+	char write_buffer[BUFFER_SIZE], read_buffer[BUFFER_SIZE];
 
 	while (TRUE)
 	{
@@ -85,6 +82,30 @@ int main(int argc, char *argv[])
 
 		printf("%s\n", read_buffer);
 	}
+}
+
+int main(int argc, char *argv[])
+{
+	int sock_fd;
+
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+	char *username;
+	int port;
+
+	if (argc < 3)
+	{
+		fprintf(stderr, "usage '%s <username> <server_ip_address> <port>'\n", argv[0]);
+		exit(0);
+	}
+
+	server = gethostbyname(argv[2]);
+	username = argv[1];
+	port = atoi(argv[3]);
+
+	sock_fd = conectar_socket(server, port, username);
+
+	gerencia_conexao(sock_fd);
 
 	close(sock_fd);
 

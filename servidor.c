@@ -21,6 +21,8 @@ typedef struct STRUCT_CONNECTION_DATA
 	int socket_fd, socket_id;
 } CONNECTION_DATA;
 
+int connection_id = 0;
+
 // TODO multiple connections get misconfigured and server thinks all of them are the same. Fix that
 
 void *read_from_client(void *data)
@@ -63,13 +65,12 @@ void *read_from_client(void *data)
 	close(conn_data->socket_fd);
 }
 
-int main(int argc, char *argv[])
+// returns socket file descriptor
+int inicializar_servidor()
 {
-	int socket_fd, new_conn_socket_fd;
-	socklen_t cli_len;
+	struct sockaddr_in serv_addr;
 	char buffer[BUFFER_SIZE];
-	struct sockaddr_in serv_addr, cli_addr;
-	int connection_id = 0;
+	int socket_fd;
 
 	socket_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
 
@@ -95,6 +96,15 @@ int main(int argc, char *argv[])
 
 	printf("Server listening on port %d\n", PORT);
 
+	return socket_fd;
+}
+
+void gerenciador_de_conexoes(int socket_fd)
+{
+	int new_conn_socket_fd;
+	struct sockaddr_in cli_addr;
+	socklen_t cli_len;
+
 	cli_len = sizeof(struct sockaddr_in);
 
 	while (TRUE)
@@ -118,6 +128,14 @@ int main(int argc, char *argv[])
 			pthread_create(&connection_thread, NULL, read_from_client, (void *)new_conn_data);
 		}
 	}
+}
+
+int main(int argc, char *argv[])
+{
+	int socket_fd;
+
+	socket_fd = inicializar_servidor();
+	gerenciador_de_conexoes(socket_fd);
 
 	close(socket_fd);
 	return 0;
