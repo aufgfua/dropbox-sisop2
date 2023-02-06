@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include "msgstruct.h"
 
 #define PORT 4000
 #define BUFFER_SIZE 256
@@ -63,6 +64,8 @@ void *read_from_client(void *data)
 
 	printf("Connection %d closed\n", conn_data->socket_id);
 	close(conn_data->socket_fd);
+
+	return NULL;
 }
 
 // returns socket file descriptor
@@ -117,7 +120,7 @@ void gerenciador_de_conexoes(int socket_fd)
 		else
 		{
 			pthread_t connection_thread;
-			CONNECTION_DATA *new_conn_data = malloc(sizeof(CONNECTION_DATA));
+			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
 
 			new_conn_data->socket_fd = new_conn_socket_fd;
 			new_conn_data->socket_id = connection_id;

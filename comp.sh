@@ -1,2 +1,2 @@
-gcc -o servidor.o servidor.c -lpthread
-gcc -o cliente.o cliente.c -lpthread
+g++ -o servidor.o servidor.cpp -lpthread
+g++ -o cliente.o cliente.cpp -lpthread

@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include "msgstruct.h"
 
 #define PORT 4000
 #define BUFFER_SIZE 256
