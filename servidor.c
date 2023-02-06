@@ -107,14 +107,15 @@ int main(int argc, char *argv[])
 		else
 		{
 			pthread_t connection_thread;
-			CONNECTION_DATA new_conn_data;
+			CONNECTION_DATA *new_conn_data = malloc(sizeof(CONNECTION_DATA));
 
-			new_conn_data.socket_fd = new_conn_socket_fd;
-			new_conn_data.socket_id = connection_id;
+			new_conn_data->socket_fd = new_conn_socket_fd;
+			new_conn_data->socket_id = connection_id;
 			connection_id++;
 
-			printf("Connection accepted - ID: %d\n", new_conn_data.socket_id);
-			pthread_create(&connection_thread, NULL, read_from_client, (void *)&new_conn_data);
+			printf("Connection %d accepted\n", new_conn_data->socket_id);
+
+			pthread_create(&connection_thread, NULL, read_from_client, (void *)new_conn_data);
 		}
 	}
 
