@@ -1,3 +1,5 @@
+#include <ctime>
+#include <iostream>
 #include <dirent.h>
 #include <unistd.h>
 #include <time.h>
@@ -19,7 +21,10 @@ using namespace std;
 
 #define PACKET_TYPE_DATA 1
 
-#define PROCEDURE_LIST_FILES 1
+#define PROCEDURE_SYNC_FILES 0
+
+#define FILE_SYNC_UPLOAD 0
+#define FILE_SYNC_DOWNLOAD 1
 
 int LOG_MODE = LOG_MODE_OFF;
 
@@ -27,6 +32,13 @@ typedef struct STR_PROCEDURE_SELECT
 {
     uint16_t proc_id;
 } PROCEDURE_SELECT;
+
+typedef struct STR_FILE_SYNC
+{
+    uint16_t sync_type;
+    char filename[MAX_FILENAME_SIZE];
+    uint32_t size;
+} FILE_SYNC;
 
 typedef struct STR_LOGIN
 {
@@ -61,6 +73,12 @@ typedef struct STR_FILE
     uint32_t last_accessed;
     uint32_t last_changed;
 } USR_FILE;
+
+typedef struct STR_DATA_RETURN
+{
+    char *data;
+    int bytes_size;
+} DATA_RETURN;
 
 void print_usr_file(USR_FILE file)
 {
@@ -251,4 +269,123 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
         bytes_to_write -= bytes_sent;
     }
     return total_bytes_written;
+}
+
+DATA_RETURN receive_data_with_packets(int sock_fd)
+{
+
+    // read NUMBER_OF_PACKETS
+    char *buffer = read_all_bytes(sock_fd, sizeof(NUMBER_OF_PACKETS));
+    if (buffer == NULL)
+    {
+        throw "Error reading number of packets";
+    }
+    NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)buffer;
+
+    // printf("Number of packets: %d\n", number_of_packets->pck_number);
+
+    vector<packet> *packets_vector = new vector<packet>();
+
+    for (int i = 0; i < number_of_packets->pck_number; i++)
+    {
+        buffer = read_all_bytes(sock_fd, sizeof(packet));
+        if (buffer == NULL)
+        {
+            throw "Error reading packet";
+        }
+        packet *pck = (packet *)buffer;
+        packets_vector->push_back(*pck);
+
+        // printf("Packet %d received\n", pck->seqn);
+    }
+
+    // printf("All packets received - %d\n", number_of_packets->pck_number);
+
+    packet *packets = (packet *)packets_vector;
+
+    char *data_recovered = (char *)malloc(number_of_packets->pck_number * MAX_PACKET_PAYLOAD_SIZE);
+
+    int read_size = 0;
+    for (int i = 0; i < packets_vector->size(); i++)
+    {
+        packet pck = packets_vector->at(i);
+        print_packet(pck);
+        memcpy(data_recovered + read_size, pck._payload, pck.length);
+        read_size += pck.length;
+    }
+
+    DATA_RETURN data = {data_recovered, read_size};
+
+    return data;
+}
+
+int convert_type_size(int size, int init_type_size, int final_type_size)
+{
+    return (size * init_type_size) / final_type_size;
+}
+
+time_t get_now()
+{
+    time_t t = time(0); // get time now
+    return t;
+}
+
+vector<USR_FILE> receive_files_list(int sock_fd)
+{
+    DATA_RETURN data = receive_data_with_packets(sock_fd);
+
+    char *data_recovered = data.data;
+    int bytes_size = data.bytes_size;
+
+    USR_FILE *file_list = (USR_FILE *)data_recovered;
+    int number_of_files = convert_type_size(bytes_size, sizeof(char), sizeof(USR_FILE));
+
+    for (int i = 0; i < number_of_files; i++)
+    {
+        USR_FILE file = file_list[i];
+        print_usr_file(file);
+    }
+
+    vector<USR_FILE>
+        return_vector;
+    return_vector.assign(file_list, file_list + number_of_files);
+
+    return return_vector;
+}
+
+void send_data_with_packets(int sock_fd, char *data, int bytes_size)
+{
+    vector<packet> *packets_vector = fragment_data(data, bytes_size);
+    packet *packets = packets_vector->data();
+    printf("Files fragmented\n");
+
+    NUMBER_OF_PACKETS number_of_packets;
+    number_of_packets.pck_number = get_number_of_packets(bytes_size);
+    number_of_packets.total_size = bytes_size;
+
+    printf("Sending number of packets to server - %d\n", number_of_packets.pck_number);
+    write_all_bytes(sock_fd, (char *)&number_of_packets, sizeof(NUMBER_OF_PACKETS));
+
+    int i;
+    printf("Sending files to server\n");
+    for (i = 0; i < number_of_packets.pck_number; i++)
+    {
+        print_packet(packets[i]);
+        write_all_bytes(sock_fd, (char *)&packets[i], sizeof(packet));
+    }
+    printf("Files sent to server!!!\n");
+}
+
+void send_files_list(int sock_fd, char *directory)
+{
+    vector<USR_FILE> *files_vector = list_files(directory);
+
+    USR_FILE *files = files_vector->data();
+
+    int files_bytes_size = files_vector->size() * sizeof(USR_FILE);
+    printf("Files size - %d\n", files_bytes_size);
+
+    send_data_with_packets(sock_fd, (char *)files, files_bytes_size);
+
+    getchar();
 }

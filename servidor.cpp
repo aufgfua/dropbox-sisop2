@@ -10,7 +10,7 @@
 
 #define PORT 40001
 #define BUFFER_SIZE 256
-#define MAX_CONNECTIONS 10
+#define MAX_WAITING_CONNECTIONS 10
 #define BYTE_SIZE 8
 #define SOCKET_DEFAULT_PROTOCOL 0
 #define TRUE 1
@@ -20,70 +20,101 @@
 
 typedef struct STRUCT_CONNECTION_DATA
 {
-	int socket_fd, connection_id;
+	int sock_fd, connection_id;
 } CONNECTION_DATA;
 
 int connection_id = 0;
-int global_socket_fd;
+int global_sock_fd;
 
-void receive_files_list(int socket_fd)
+vector<FILE_SYNC> define_sync_files(vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
 {
-	// read NUMBER_OF_PACKETS
-	char *buffer = read_all_bytes(socket_fd, sizeof(NUMBER_OF_PACKETS));
-	if (buffer == NULL)
+	vector<FILE_SYNC> sync_files;
+
+	for (int i = 0; i < local_files.size(); i++)
 	{
-		return;
-	}
-	NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)buffer;
+		USR_FILE local_file = local_files[i];
+		bool found = FALSE;
 
-	printf("Number of packets: %d\n", number_of_packets->pck_number);
-
-	vector<packet> *packets_vector = new vector<packet>();
-
-	uint32_t remaining_buffer_size = number_of_packets->total_size;
-	for (int i = 0; i < number_of_packets->pck_number; i++)
-	{
-		buffer = read_all_bytes(socket_fd, sizeof(packet));
-		if (buffer == NULL)
+		for (int j = 0; j < remote_files.size(); j++)
 		{
-			return;
+			USR_FILE remote_file = remote_files[j];
+
+			if (strcmp(local_file.filename, remote_file.filename) == 0)
+			{
+				found = TRUE;
+				if (local_file.last_modified > remote_file.last_modified)
+				{
+					FILE_SYNC sync_file;
+					strcpy(sync_file.filename, local_file.filename);
+					sync_file.sync_type = FILE_SYNC_UPLOAD;
+
+					sync_files.push_back(sync_file);
+				}
+				else if (local_file.last_modified < remote_file.last_modified)
+				{
+					FILE_SYNC sync_file;
+					strcpy(sync_file.filename, local_file.filename);
+					sync_file.sync_type = FILE_SYNC_DOWNLOAD;
+
+					sync_files.push_back(sync_file);
+				}
+			}
 		}
-		packet *pck = (packet *)buffer;
-		packets_vector->push_back(*pck);
 
-		printf("Packet %d received\n", pck->seqn);
+		if (!found)
+		{
+			FILE_SYNC sync_file;
+			strcpy(sync_file.filename, local_file.filename);
+			sync_file.sync_type = FILE_SYNC_UPLOAD;
+
+			sync_files.push_back(sync_file);
+		}
 	}
 
-	printf("All packets received - %d\n", number_of_packets->pck_number);
-
-	packet *packets = (packet *)packets_vector;
-
-	char *data_recovered = (char *)malloc(number_of_packets->pck_number * MAX_PACKET_PAYLOAD_SIZE);
-
-	int read_size = 0;
-	for (int i = 0; i < packets_vector->size(); i++)
+	for (int i = 0; i < remote_files.size(); i++)
 	{
-		packet pck = packets_vector->at(i);
-		print_packet(pck);
-		memcpy(data_recovered + read_size, pck._payload, pck.length);
-		read_size += pck.length;
+		USR_FILE remote_file = remote_files[i];
+		bool found = FALSE;
+
+		for (int j = 0; j < sync_files.size(); j++)
+		{
+			FILE_SYNC mapped_file = sync_files[j];
+
+			if (strcmp(mapped_file.filename, remote_file.filename) == 0)
+			{
+				found = TRUE;
+				break;
+			}
+		}
+
+		if (!found)
+		{
+			FILE_SYNC sync_file;
+			strcpy(sync_file.filename, remote_file.filename);
+			sync_file.sync_type = FILE_SYNC_DOWNLOAD;
+
+			sync_files.push_back(sync_file);
+		}
 	}
 
-	USR_FILE *file_list = (USR_FILE *)data_recovered;
-
-	for (int i = 0; i < number_of_packets->pck_number; i++)
-	{
-		USR_FILE file = file_list[i];
-		print_usr_file(file);
-	}
+	return sync_files;
 }
 
-void handle_procedure_selection(int socket_fd, PROCEDURE_SELECT *procedure)
+void sync_files_srv(int sock_fd, char *user_directory)
+{
+	vector<USR_FILE> remote_files = receive_files_list(sock_fd);
+
+	vector<USR_FILE> local_files = *list_files(user_directory);
+
+	vector<FILE_SYNC> sync_files = define_sync_files(local_files, remote_files);
+}
+
+void handle_procedure_selection(int sock_fd, PROCEDURE_SELECT *procedure, char *user_directory)
 {
 	switch (procedure->proc_id)
 	{
-	case 1:
-		receive_files_list(socket_fd);
+	case PROCEDURE_SYNC_FILES:
+		sync_files_srv(sock_fd, user_directory);
 		break;
 	case 2:
 		printf("Procedure 2 received\n");
@@ -91,12 +122,12 @@ void handle_procedure_selection(int socket_fd, PROCEDURE_SELECT *procedure)
 	}
 }
 
-void connection_loop(int socket_fd, char *username, char *user_directory)
+void connection_loop(int sock_fd, char *username, char *user_directory)
 {
 	while (TRUE)
 	{
 
-		char *buffer = read_all_bytes(socket_fd, sizeof(PROCEDURE_SELECT));
+		char *buffer = read_all_bytes(sock_fd, sizeof(PROCEDURE_SELECT));
 		printf("Procedure received\n");
 
 		if (buffer == NULL)
@@ -106,21 +137,21 @@ void connection_loop(int socket_fd, char *username, char *user_directory)
 
 		PROCEDURE_SELECT *procedure = (PROCEDURE_SELECT *)buffer;
 
-		handle_procedure_selection(socket_fd, procedure);
+		handle_procedure_selection(sock_fd, procedure, user_directory);
 	}
 }
 
-char *get_username(int socket_fd)
+char *get_username(int sock_fd)
 {
 	LOGIN *login;
 	printf("Waiting for username...\n");
-	char *buffer = read_all_bytes(socket_fd, sizeof(LOGIN));
+	char *buffer = read_all_bytes(sock_fd, sizeof(LOGIN));
 	printf("Username received\n");
 
 	if (buffer == NULL)
 	{
 		printf("Connection %d closed\n", connection_id);
-		close(socket_fd);
+		close(sock_fd);
 		return NULL;
 	}
 
@@ -135,9 +166,9 @@ void *start_connection(void *data)
 	CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
 
 	int connection_id = conn_data->connection_id;
-	int socket_fd = conn_data->socket_fd;
+	int sock_fd = conn_data->sock_fd;
 
-	char *username = get_username(socket_fd);
+	char *username = get_username(sock_fd);
 
 	char *user_directory = (char *)malloc(MAX_PATH_SIZE);
 
@@ -147,10 +178,10 @@ void *start_connection(void *data)
 	create_folder_if_not_exists(user_directory);
 	printf("User directory: %s\n", user_directory);
 
-	connection_loop(socket_fd, username, user_directory);
+	connection_loop(sock_fd, username, user_directory);
 
 	printf("Connection %d closed\n", conn_data->connection_id);
-	close(conn_data->socket_fd);
+	close(conn_data->sock_fd);
 
 	return NULL;
 }
@@ -160,11 +191,11 @@ int inicializar_servidor(int port)
 {
 	struct sockaddr_in serv_addr;
 	char buffer[BUFFER_SIZE];
-	int socket_fd;
+	int sock_fd;
 
-	socket_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
+	sock_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
 
-	if (socket_fd == -1)
+	if (sock_fd == -1)
 	{
 		printf("ERROR opening socket\n");
 		exit(0);
@@ -176,7 +207,7 @@ int inicializar_servidor(int port)
 
 	bzero(&(serv_addr.sin_zero), BYTE_SIZE);
 
-	int bind_return = bind(socket_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+	int bind_return = bind(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
 	if (bind_return < 0)
 	{
@@ -184,17 +215,17 @@ int inicializar_servidor(int port)
 		exit(0);
 	}
 
-	listen(socket_fd, MAX_CONNECTIONS);
+	listen(sock_fd, MAX_WAITING_CONNECTIONS);
 
 	printf("Server listening on port %d\n", port);
 
-	global_socket_fd = socket_fd;
-	return socket_fd;
+	global_sock_fd = sock_fd;
+	return sock_fd;
 }
 
-void gerenciador_de_conexoes(int socket_fd)
+void gerenciador_de_conexoes(int sock_fd)
 {
-	int new_conn_socket_fd;
+	int new_conn_sock_fd;
 	struct sockaddr_in cli_addr;
 	socklen_t cli_len;
 
@@ -202,8 +233,8 @@ void gerenciador_de_conexoes(int socket_fd)
 
 	while (TRUE)
 	{
-		new_conn_socket_fd = accept(socket_fd, (struct sockaddr *)&cli_addr, &cli_len);
-		if (new_conn_socket_fd == -1)
+		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
+		if (new_conn_sock_fd == -1)
 		{
 			printf("ERROR on accept");
 		}
@@ -212,7 +243,7 @@ void gerenciador_de_conexoes(int socket_fd)
 			pthread_t connection_thread;
 			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
 
-			new_conn_data->socket_fd = new_conn_socket_fd;
+			new_conn_data->sock_fd = new_conn_sock_fd;
 			new_conn_data->connection_id = connection_id;
 			connection_id++;
 
@@ -225,14 +256,14 @@ void gerenciador_de_conexoes(int socket_fd)
 
 int main(int argc, char *argv[])
 {
-	int socket_fd;
+	int sock_fd;
 
 	int port = argc > 1 ? atoi(argv[1]) : PORT;
 
-	socket_fd = inicializar_servidor(port);
+	sock_fd = inicializar_servidor(port);
 
-	gerenciador_de_conexoes(socket_fd);
+	gerenciador_de_conexoes(sock_fd);
 
-	close(socket_fd);
+	close(sock_fd);
 	return 0;
 }
