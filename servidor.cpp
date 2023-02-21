@@ -217,7 +217,6 @@ void srv_connection_loop(int sock_fd, char *username, char *user_directory)
 			bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
 			if (EXIT_NOW)
 			{
-				printf("EXITING CONNECTION %d", sock_fd);
 				return;
 			}
 		}
@@ -274,7 +273,7 @@ void *start_connection(void *data)
 
 		srv_connection_loop(sock_fd, username, user_directory);
 
-		printf("Connection %d closed\n\n", conn_data->connection_id);
+		printf("Connection %d closed\n\n", conn_data->sock_fd);
 		close(conn_data->sock_fd);
 	}
 	catch (exception e)

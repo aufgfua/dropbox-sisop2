@@ -199,11 +199,10 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	{
 		printf("Uploading %s to server...\n\n", upload_target.c_str());
 
-		char current_cwd[MAX_PATH_SIZE];
-		getcwd(current_cwd, MAX_PATH_SIZE);
-		strcat(current_cwd, "/");
+		char current_dir[MAX_PATH_SIZE];
+		strcpy(current_dir, get_current_path());
 
-		send_single_file(sock_fd, upload_target.c_str(), current_cwd, CLIENT_SYNC_UPLOAD);
+		send_single_file(sock_fd, upload_target.c_str(), current_dir, CLIENT_SYNC_UPLOAD);
 
 		orders.push(PROCEDURE_SYNC_FILES);
 	}
@@ -212,8 +211,7 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	{
 		printf("Downloading %s from server...\n\n", download_target.c_str());
 		char current_dir[MAX_PATH_SIZE];
-		getcwd(current_dir, MAX_PATH_SIZE);
-		strcat(current_dir, "/");
+		strcpy(current_dir, get_current_path());
 
 		DESIRED_FILE desired_file;
 

@@ -36,8 +36,17 @@ void print_usr_files(vector<USR_FILE> files)
     }
 }
 
+char *get_current_path()
+{
+    char *current_dir = (char *)malloc(MAX_PATH_SIZE);
+    getcwd(current_dir, MAX_PATH_SIZE);
+    strcat(current_dir, "/");
+    return current_dir;
+}
+
 char *get_home_path()
 {
+    // return get_current_path();
     char *homedir;
 
     if ((homedir = getenv("HOME")) == NULL)
@@ -110,8 +119,10 @@ USR_FILE *get_file_metadata(char *filename, char *directory)
         {
             string curr_file_name = ent->d_name;
 
-            if (curr_file_name.find(CONTROL_PREFIX))
+            if (curr_file_name.find(CONTROL_PREFIX) != string::npos)
+            {
                 continue;
+            }
 
             if (strcmp(filename, ent->d_name) == 0)
             {
@@ -163,7 +174,7 @@ vector<USR_FILE> *list_files(const char *folder)
         if (ent->d_type == DT_REG)
         {
             string curr_file_name = ent->d_name;
-            if (curr_file_name.find(CONTROL_PREFIX))
+            if (curr_file_name.find(CONTROL_PREFIX) != string::npos)
                 continue;
 
             char path[MAX_FILENAME_SIZE];
