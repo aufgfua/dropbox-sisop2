@@ -34,7 +34,7 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 #define SRV_TURN 1
 #define START_TURN CLI_TURN
 
-#define SYNC_WAIT 10
+#define SYNC_WAIT 4
 
 #include "header/appflow.h"
 #include "header/packets.h"

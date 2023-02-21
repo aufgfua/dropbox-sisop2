@@ -1,2 +1,2 @@
-g++ -o servidor.o servidor.cpp -lpthread
-g++ -o cliente.o cliente.cpp -lpthread
+g++ -o servidor.o servidor.cpp -lpthread -std=c++11
+g++ -o cliente.o cliente.cpp -lpthread -std=c++11

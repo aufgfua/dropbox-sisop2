@@ -46,15 +46,15 @@ void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FIL
 			if (strcmp(local_file.filename, remote_file.filename) == 0)
 			{
 				found = TRUE;
-				if (local_file.last_modified > remote_file.last_modified)
+				if (local_file.last_modified > remote_file.last_modified && local_file.size > 0)
 				{
 					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_UPLOAD, local_file.size, local_file.last_modified);
 
 					sync_files->push_back(*sync_file);
 				}
-				else if (local_file.last_modified < remote_file.last_modified)
+				else if (local_file.last_modified < remote_file.last_modified && remote_file.size > 0)
 				{
-					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_DOWNLOAD, local_file.size, local_file.last_modified);
+					UP_DOWN_COMMAND *sync_file = create_up_down_command(remote_file.filename, SERVER_SYNC_DOWNLOAD, remote_file.size, remote_file.last_modified);
 
 					sync_files->push_back(*sync_file);
 				}
