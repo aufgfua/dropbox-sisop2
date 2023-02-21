@@ -13,6 +13,10 @@
 #include <string.h>
 #include <utime.h>
 
+#include <mutex>
+
+using namespace std;
+
 #define TRUE 1
 #define FALSE 0
 
@@ -35,6 +39,8 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 #include "header/appflow.h"
 #include "header/packets.h"
 
+#include "header/threadssync.h"
+
 #include "header/fileslist.h"
 #include "header/updowncmd.h"
 #include "header/filetranscontroller.h"
@@ -42,8 +48,6 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 
 #include "header/sync_file_cli.h"
 #include "header/sync_file_srv.h"
-
-using namespace std;
 
 time_t get_now()
 {

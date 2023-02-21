@@ -17,6 +17,8 @@ void srv_sync_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *director
 
 void srv_sync_files_list(int sock_fd, vector<UP_DOWN_COMMAND> up_down_command, char *directory)
 {
+    get_sync_dir_control(directory);
+
     int number_of_files = up_down_command.size();
 
     while (number_of_files > 0)
@@ -31,4 +33,6 @@ void srv_sync_files_list(int sock_fd, vector<UP_DOWN_COMMAND> up_down_command, c
     }
 
     send_transaction_controller(sock_fd, NO_MORE_FILES);
+
+    release_sync_dir_control(directory);
 }

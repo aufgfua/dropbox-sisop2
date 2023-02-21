@@ -1,19 +1,3 @@
-#include <ctime>
-#include <iostream>
-#include <dirent.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <vector>
-#include <errno.h>
-#include <pwd.h>
-#include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-using namespace std;
-
 #define MAX_PACKET_PAYLOAD_SIZE 1024
 #define PACKET_TYPE_DATA 1
 

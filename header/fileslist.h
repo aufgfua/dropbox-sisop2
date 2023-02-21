@@ -108,6 +108,11 @@ USR_FILE *get_file_metadata(char *filename, char *directory)
     {
         if (ent->d_type == DT_REG)
         {
+            string curr_file_name = ent->d_name;
+
+            if (curr_file_name.find(CONTROL_PREFIX))
+                continue;
+
             if (strcmp(filename, ent->d_name) == 0)
             {
                 found = TRUE;
@@ -157,6 +162,10 @@ vector<USR_FILE> *list_files(const char *folder)
         USR_FILE file;
         if (ent->d_type == DT_REG)
         {
+            string curr_file_name = ent->d_name;
+            if (curr_file_name.find(CONTROL_PREFIX))
+                continue;
+
             char path[MAX_FILENAME_SIZE];
             strcpy(file.filename, ent->d_name);
 

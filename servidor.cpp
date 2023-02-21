@@ -146,11 +146,17 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		send_files_list(sock_fd, user_directory);
 		break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
+		get_sync_dir_control(user_directory);
+
 		printf("Receiving file...\n\n");
 		receive_single_file(sock_fd, user_directory);
+
+		release_sync_dir_control(user_directory);
 		break;
 	case PROCEDURE_DOWNLOAD_FROM_SERVER:
 	{
+		get_sync_dir_control(user_directory);
+
 		printf("Sending file...\n\n");
 
 		DATA_RETURN data = receive_data_with_packets(sock_fd);
@@ -161,6 +167,8 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		DESIRED_FILE *desired_file = (DESIRED_FILE *)data_recovered;
 
 		send_single_file(sock_fd, desired_file->filename, user_directory, SERVER_SYNC_UPLOAD);
+
+		release_sync_dir_control(user_directory);
 	}
 	break;
 
@@ -235,7 +243,7 @@ char *get_username(int sock_fd)
 
 	if (buffer == NULL)
 	{
-		printf("Connection %d closed\n\n", connection_id);
+		printf("Connection %d closed\n\n", sock_fd);
 		close(sock_fd);
 		return NULL;
 	}
