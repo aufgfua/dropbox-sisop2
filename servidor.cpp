@@ -137,18 +137,18 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		// printf("NOP\n");
 		break;
 	case PROCEDURE_SYNC_FILES:
-		printf("Syncing files...\n\n");
+		printf("%d - Syncing files...\n\n", sock_fd);
 		sync_files_procedure_srv(sock_fd, user_directory);
 		last_sync[sock_fd] = get_now();
 		break;
 	case PROCEDURE_LIST_SERVER:
-		printf("Listing server files...\n\n");
+		printf("%d - Listing server files...\n\n", sock_fd);
 		send_files_list(sock_fd, user_directory);
 		break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
 		get_sync_dir_control(user_directory);
 
-		printf("Receiving file...\n\n");
+		printf("%d - Receiving file...\n\n", sock_fd);
 		receive_single_file(sock_fd, user_directory);
 
 		release_sync_dir_control(user_directory);
@@ -157,7 +157,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	{
 		get_sync_dir_control(user_directory);
 
-		printf("Sending file...\n\n");
+		printf("%d - Sending file...\n\n", sock_fd);
 
 		DATA_RETURN data = receive_data_with_packets(sock_fd);
 
@@ -173,7 +173,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	break;
 
 	case PROCEDURE_EXIT:
-		printf("Exiting...\n\n");
+		printf("%d - Exiting...\n\n", sock_fd);
 		return TRUE;
 		break;
 	}
@@ -184,7 +184,7 @@ int select_procedure(int sock_fd)
 {
 	if (get_now() - last_sync[sock_fd] > SYNC_WAIT)
 	{
-		printf("Need to sync...\n");
+		printf("%d - Need to sync...\n", sock_fd);
 		return PROCEDURE_SYNC_FILES;
 	}
 	return PROCEDURE_NOP;

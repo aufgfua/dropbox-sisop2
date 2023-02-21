@@ -182,7 +182,7 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 		break;
 
 	case PROCEDURE_SYNC_FILES:
-		printf("Syncing files...\n\n");
+		// printf("Syncing files...\n\n");
 		send_files_list(sock_fd, user_directory);
 		cli_transaction_loop(sock_fd, user_directory);
 		last_sync = get_now();
