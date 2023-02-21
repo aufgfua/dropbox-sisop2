@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <map>
 #include "shared.h"
 
 #define PORT 40001
@@ -26,9 +27,10 @@ typedef struct STRUCT_CONNECTION_DATA
 int connection_id = 0;
 int global_sock_fd;
 
-vector<FILE_SYNC> define_sync_files(vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
+map<int, long> last_sync;
+
+void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
 {
-	vector<FILE_SYNC> sync_files;
 
 	for (int i = 0; i < local_files.size(); i++)
 	{
@@ -44,41 +46,44 @@ vector<FILE_SYNC> define_sync_files(vector<USR_FILE> local_files, vector<USR_FIL
 				found = TRUE;
 				if (local_file.last_modified > remote_file.last_modified)
 				{
-					FILE_SYNC sync_file;
-					strcpy(sync_file.filename, local_file.filename);
-					sync_file.sync_type = FILE_SYNC_UPLOAD;
+					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_UPLOAD, local_file.size, local_file.last_modified);
 
-					sync_files.push_back(sync_file);
+					sync_files->push_back(*sync_file);
 				}
 				else if (local_file.last_modified < remote_file.last_modified)
 				{
-					FILE_SYNC sync_file;
-					strcpy(sync_file.filename, local_file.filename);
-					sync_file.sync_type = FILE_SYNC_DOWNLOAD;
+					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_DOWNLOAD, local_file.size, local_file.last_modified);
 
-					sync_files.push_back(sync_file);
+					sync_files->push_back(*sync_file);
+				}
+				else if (local_file.last_modified == remote_file.last_modified)
+				{
+					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_KEEP_FILE, local_file.size, local_file.last_modified);
+
+					sync_files->push_back(*sync_file);
 				}
 			}
 		}
 
 		if (!found)
 		{
-			FILE_SYNC sync_file;
-			strcpy(sync_file.filename, local_file.filename);
-			sync_file.sync_type = FILE_SYNC_UPLOAD;
+			UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_UPLOAD, local_file.size, local_file.last_modified);
 
-			sync_files.push_back(sync_file);
+			sync_files->push_back(*sync_file);
 		}
 	}
+}
 
+void define_sync_remote_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
+{
 	for (int i = 0; i < remote_files.size(); i++)
 	{
 		USR_FILE remote_file = remote_files[i];
 		bool found = FALSE;
 
-		for (int j = 0; j < sync_files.size(); j++)
+		for (int j = 0; j < sync_files->size(); j++)
 		{
-			FILE_SYNC mapped_file = sync_files[j];
+			UP_DOWN_COMMAND mapped_file = sync_files->at(j);
 
 			if (strcmp(mapped_file.filename, remote_file.filename) == 0)
 			{
@@ -89,55 +94,106 @@ vector<FILE_SYNC> define_sync_files(vector<USR_FILE> local_files, vector<USR_FIL
 
 		if (!found)
 		{
-			FILE_SYNC sync_file;
-			strcpy(sync_file.filename, remote_file.filename);
-			sync_file.sync_type = FILE_SYNC_DOWNLOAD;
+			UP_DOWN_COMMAND *sync_file = create_up_down_command(remote_file.filename, SERVER_SYNC_DOWNLOAD, remote_file.size, remote_file.last_modified);
 
-			sync_files.push_back(sync_file);
+			sync_files->push_back(*sync_file);
 		}
 	}
+}
+
+vector<UP_DOWN_COMMAND> define_sync_files(vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
+{
+	vector<UP_DOWN_COMMAND> sync_files;
+
+	define_sync_local_files(&sync_files, local_files, remote_files);
+
+	define_sync_remote_files(&sync_files, local_files, remote_files);
 
 	return sync_files;
 }
 
-void sync_files_srv(int sock_fd, char *user_directory)
+void sync_files_procedure_srv(int sock_fd, char *user_directory)
 {
 	vector<USR_FILE> remote_files = receive_files_list(sock_fd);
 
 	vector<USR_FILE> local_files = *list_files(user_directory);
 
-	vector<FILE_SYNC> sync_files = define_sync_files(local_files, remote_files);
+	vector<UP_DOWN_COMMAND> sync_files = define_sync_files(local_files, remote_files);
+
+	srv_sync_files_list(sock_fd, sync_files, user_directory);
 }
 
-void handle_procedure_selection(int sock_fd, PROCEDURE_SELECT *procedure, char *user_directory)
+int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_directory)
 {
 	switch (procedure->proc_id)
 	{
-	case PROCEDURE_SYNC_FILES:
-		sync_files_srv(sock_fd, user_directory);
+	case PROCEDURE_NOP:
 		break;
-	case 2:
-		printf("Procedure 2 received\n");
+	case PROCEDURE_SYNC_FILES:
+		printf("Syncing files...\n\n");
+		sync_files_procedure_srv(sock_fd, user_directory);
+		last_sync[sock_fd] = get_now();
+		break;
+	case PROCEDURE_LIST_SERVER:
+		printf("Listing server files...\n\n");
+		send_files_list(sock_fd, user_directory);
+		break;
+	case PROCEDURE_UPLOAD_TO_SERVER:
+		printf("Receiving file...\n\n");
+		// upload_file_procedure_srv(sock_fd, user_directory);
+		break;
+
+	case PROCEDURE_EXIT:
+		printf("Exiting...\n\n");
+		return TRUE;
 		break;
 	}
+	return FALSE;
 }
 
-void connection_loop(int sock_fd, char *username, char *user_directory)
+int select_procedure(int sock_fd)
 {
+	if (get_now() - last_sync[sock_fd] > SYNC_WAIT)
+	{
+		printf("Need to sync...\n");
+		return PROCEDURE_SYNC_FILES;
+	}
+	return PROCEDURE_NOP;
+}
+
+void srv_turn(int sock_fd, char *user_directory)
+{
+	int proc_id = select_procedure(sock_fd);
+	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
+	srv_handle_procedure(sock_fd, procedure, user_directory);
+}
+
+void srv_connection_loop(int sock_fd, char *username, char *user_directory)
+{
+	char turn = START_TURN;
+
 	while (TRUE)
 	{
-
-		char *buffer = read_all_bytes(sock_fd, sizeof(PROCEDURE_SELECT));
-		printf("Procedure received\n");
-
-		if (buffer == NULL)
+		switch (turn)
 		{
-			break;
+		case CLI_TURN:
+		{
+			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+			bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
+			if (EXIT_NOW)
+			{
+				return;
+			}
+		}
+		break;
+		case SRV_TURN:
+		{
+			srv_turn(sock_fd, user_directory);
+		}
+		break;
 		}
 
-		PROCEDURE_SELECT *procedure = (PROCEDURE_SELECT *)buffer;
-
-		handle_procedure_selection(sock_fd, procedure, user_directory);
+		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 	}
 }
 
@@ -150,7 +206,7 @@ char *get_username(int sock_fd)
 
 	if (buffer == NULL)
 	{
-		printf("Connection %d closed\n", connection_id);
+		printf("Connection %d closed\n\n", connection_id);
 		close(sock_fd);
 		return NULL;
 	}
@@ -162,27 +218,32 @@ char *get_username(int sock_fd)
 
 void *start_connection(void *data)
 {
+	try
+	{
+		CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
 
-	CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
+		int connection_id = conn_data->connection_id;
+		int sock_fd = conn_data->sock_fd;
 
-	int connection_id = conn_data->connection_id;
-	int sock_fd = conn_data->sock_fd;
+		char *username = get_username(sock_fd);
 
-	char *username = get_username(sock_fd);
+		char *user_directory = (char *)malloc(MAX_PATH_SIZE);
 
-	char *user_directory = (char *)malloc(MAX_PATH_SIZE);
+		printf("Con #%d - logged in as %s\n", connection_id, username);
 
-	printf("Con #%d - logged in as %s\n", connection_id, username);
+		strcpy(user_directory, mount_base_path(username, SERVER_BASE_DIR));
+		create_folder_if_not_exists(user_directory);
+		printf("User directory: %s\n\n", user_directory);
 
-	strcpy(user_directory, mount_base_path(username, SERVER_BASE_DIR));
-	create_folder_if_not_exists(user_directory);
-	printf("User directory: %s\n", user_directory);
+		srv_connection_loop(sock_fd, username, user_directory);
 
-	connection_loop(sock_fd, username, user_directory);
-
-	printf("Connection %d closed\n", conn_data->connection_id);
-	close(conn_data->sock_fd);
-
+		printf("Connection %d closed\n\n", conn_data->connection_id);
+		close(conn_data->sock_fd);
+	}
+	catch (exception e)
+	{
+		printf("Exception: %s\n", e.what());
+	}
 	return NULL;
 }
 
@@ -197,7 +258,7 @@ int inicializar_servidor(int port)
 
 	if (sock_fd == -1)
 	{
-		printf("ERROR opening socket\n");
+		printf("ERROR opening socket\n\n");
 		exit(0);
 	}
 
@@ -211,13 +272,13 @@ int inicializar_servidor(int port)
 
 	if (bind_return < 0)
 	{
-		printf("ERROR on binding\n");
+		printf("ERROR on binding\n\n");
 		exit(0);
 	}
 
 	listen(sock_fd, MAX_WAITING_CONNECTIONS);
 
-	printf("Server listening on port %d\n", port);
+	printf("Server listening on port %d\n\n", port);
 
 	global_sock_fd = sock_fd;
 	return sock_fd;
@@ -236,7 +297,7 @@ void gerenciador_de_conexoes(int sock_fd)
 		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
 		if (new_conn_sock_fd == -1)
 		{
-			printf("ERROR on accept");
+			printf("ERROR on accept\n");
 		}
 		else
 		{
@@ -247,7 +308,7 @@ void gerenciador_de_conexoes(int sock_fd)
 			new_conn_data->connection_id = connection_id;
 			connection_id++;
 
-			printf("Connection %d accepted\n", new_conn_data->connection_id);
+			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
 
 			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
 		}
