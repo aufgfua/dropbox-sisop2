@@ -19,8 +19,6 @@
 #define MAX_CONNECTIONS 10
 #define BYTE_SIZE 8
 #define SOCKET_DEFAULT_PROTOCOL 0
-#define TRUE 1
-#define FALSE 0
 #define bool int
 
 queue<int> orders;
@@ -78,17 +76,18 @@ int connect_socket(struct hostent *server, int port, char *username)
 
 int select_procedure(int sock_fd)
 {
-	if (orders.size() > 0)
-	{
-		int order = orders.front();
-		orders.pop();
-		return order;
-	}
 
 	if (get_now() - last_sync > SYNC_WAIT)
 	{
 		printf("Need to sync...\n");
 		return PROCEDURE_SYNC_FILES;
+	}
+
+	if (orders.size() > 0)
+	{
+		int order = orders.front();
+		orders.pop();
+		return order;
 	}
 
 	return PROCEDURE_NOP;
@@ -99,7 +98,7 @@ void *get_input_order_loop(void *data)
 	string order;
 	while (TRUE)
 	{
-		cin >> order;
+		getline(cin, order);
 
 		if (order.find("download") != string::npos)
 		{
@@ -179,6 +178,7 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	switch (procedure->proc_id)
 	{
 	case PROCEDURE_NOP:
+		// printf("NOP\n");
 		break;
 
 	case PROCEDURE_SYNC_FILES:
@@ -195,7 +195,35 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 		print_usr_files(remote_files);
 	}
 	break;
+	case PROCEDURE_UPLOAD_TO_SERVER:
+	{
+		printf("Uploading %s to server...\n\n", upload_target.c_str());
 
+		char current_cwd[MAX_PATH_SIZE];
+		getcwd(current_cwd, MAX_PATH_SIZE);
+		strcat(current_cwd, "/");
+
+		send_single_file(sock_fd, upload_target.c_str(), current_cwd, CLIENT_SYNC_UPLOAD);
+
+		orders.push(PROCEDURE_SYNC_FILES);
+	}
+	break;
+	case PROCEDURE_DOWNLOAD_FROM_SERVER:
+	{
+		printf("Downloading %s from server...\n\n", download_target.c_str());
+		char current_dir[MAX_PATH_SIZE];
+		getcwd(current_dir, MAX_PATH_SIZE);
+		strcat(current_dir, "/");
+
+		DESIRED_FILE desired_file;
+
+		strcpy(desired_file.filename, download_target.c_str());
+
+		send_data_with_packets(sock_fd, (char *)&desired_file, sizeof(DESIRED_FILE));
+
+		receive_single_file(sock_fd, current_dir);
+	}
+	break;
 	case PROCEDURE_EXIT:
 		printf("Exiting...\n\n");
 		break;
@@ -205,6 +233,7 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 void cli_turn(int sock_fd)
 {
 	int proc_id = select_procedure(sock_fd);
+	// printf("Selected procedure: %d - ", proc_id);
 	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
 	cli_handle_procedure(sock_fd, procedure);
 }
@@ -213,8 +242,12 @@ void cli_connection_loop(int sock_fd, char *username)
 {
 	char turn = START_TURN;
 
+	uint32_t run = 0;
+
 	while (TRUE)
 	{
+		// printf("\nRun %d - Turn %d\n", run, turn);
+		run++;
 		switch (turn)
 		{
 		case CLI_TURN:
@@ -225,6 +258,7 @@ void cli_connection_loop(int sock_fd, char *username)
 		case SRV_TURN:
 		{
 			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+			// printf("Received procedure: %d - ", procedure->proc_id);
 			cli_handle_procedure(sock_fd, procedure);
 		}
 		break;

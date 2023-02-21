@@ -13,6 +13,9 @@
 #include <string.h>
 #include <utime.h>
 
+#define TRUE 1
+#define FALSE 0
+
 #define LOG_MODE_OFF 0
 #define LOG_MODE_ON 1
 int LOG_MODE = LOG_MODE_OFF;
@@ -27,7 +30,7 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 #define SRV_TURN 1
 #define START_TURN CLI_TURN
 
-#define SYNC_WAIT 20
+#define SYNC_WAIT 10
 
 #include "header/appflow.h"
 #include "header/packets.h"

@@ -14,8 +14,6 @@
 #define MAX_WAITING_CONNECTIONS 10
 #define BYTE_SIZE 8
 #define SOCKET_DEFAULT_PROTOCOL 0
-#define TRUE 1
-#define FALSE 0
 #define bool int
 #define LEAVE_KEY 'q'
 
@@ -35,6 +33,10 @@ void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FIL
 	for (int i = 0; i < local_files.size(); i++)
 	{
 		USR_FILE local_file = local_files[i];
+
+		if (local_file.size == 0)
+			continue;
+
 		bool found = FALSE;
 
 		for (int j = 0; j < remote_files.size(); j++)
@@ -79,6 +81,10 @@ void define_sync_remote_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FI
 	for (int i = 0; i < remote_files.size(); i++)
 	{
 		USR_FILE remote_file = remote_files[i];
+
+		if (remote_file.size == 0)
+			continue;
+
 		bool found = FALSE;
 
 		for (int j = 0; j < sync_files->size(); j++)
@@ -128,6 +134,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	switch (procedure->proc_id)
 	{
 	case PROCEDURE_NOP:
+		// printf("NOP\n");
 		break;
 	case PROCEDURE_SYNC_FILES:
 		printf("Syncing files...\n\n");
@@ -140,8 +147,22 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
 		printf("Receiving file...\n\n");
-		// upload_file_procedure_srv(sock_fd, user_directory);
+		receive_single_file(sock_fd, user_directory);
 		break;
+	case PROCEDURE_DOWNLOAD_FROM_SERVER:
+	{
+		printf("Sending file...\n\n");
+
+		DATA_RETURN data = receive_data_with_packets(sock_fd);
+
+		char *data_recovered = data.data;
+		int bytes_size = data.bytes_size;
+
+		DESIRED_FILE *desired_file = (DESIRED_FILE *)data_recovered;
+
+		send_single_file(sock_fd, desired_file->filename, user_directory, SERVER_SYNC_UPLOAD);
+	}
+	break;
 
 	case PROCEDURE_EXIT:
 		printf("Exiting...\n\n");
@@ -165,6 +186,7 @@ void srv_turn(int sock_fd, char *user_directory)
 {
 	int proc_id = select_procedure(sock_fd);
 	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
+	// printf("Selected procedure: %d - ", proc_id);
 	srv_handle_procedure(sock_fd, procedure, user_directory);
 }
 
@@ -172,16 +194,22 @@ void srv_connection_loop(int sock_fd, char *username, char *user_directory)
 {
 	char turn = START_TURN;
 
+	uint32_t run = 0;
+
 	while (TRUE)
 	{
+		// printf("\nRun %d - Turn %d\n", run, turn);
+		run++;
 		switch (turn)
 		{
 		case CLI_TURN:
 		{
 			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+			// printf("Received procedure: %d - ", procedure->proc_id);
 			bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
 			if (EXIT_NOW)
 			{
+				printf("EXITING CONNECTION %d", sock_fd);
 				return;
 			}
 		}
@@ -193,6 +221,7 @@ void srv_connection_loop(int sock_fd, char *username, char *user_directory)
 		break;
 		}
 
+		sleep(1);
 		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 	}
 }

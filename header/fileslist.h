@@ -89,6 +89,57 @@ void create_folder_if_not_exists(char *path)
     }
 }
 
+USR_FILE *get_file_metadata(char *filename, char *directory)
+{
+    USR_FILE *file = (USR_FILE *)malloc(sizeof(USR_FILE));
+
+    bool found = FALSE;
+
+    DIR *dir = opendir(directory);
+    if (dir == NULL)
+    {
+        perror("opendir");
+        return NULL;
+    }
+
+    struct dirent *ent;
+
+    while ((ent = readdir(dir)) != NULL)
+    {
+        if (ent->d_type == DT_REG)
+        {
+            if (strcmp(filename, ent->d_name) == 0)
+            {
+                found = TRUE;
+
+                char path[MAX_FILENAME_SIZE];
+                strcpy(file->filename, ent->d_name);
+
+                strcpy(path, directory);
+                strcat(path, ent->d_name);
+
+                struct stat buf;
+                if (stat(path, &buf) == 0)
+                {
+                    file->size = buf.st_size;
+                    file->last_modified = buf.st_mtime;
+                    file->last_accessed = buf.st_atime;
+                    file->last_changed = buf.st_ctime;
+                    break;
+                }
+            }
+        }
+    }
+
+    closedir(dir);
+
+    if (!found)
+    {
+        return NULL;
+    }
+    return file;
+}
+
 vector<USR_FILE> *list_files(const char *folder)
 {
     DIR *dir = opendir(folder);
