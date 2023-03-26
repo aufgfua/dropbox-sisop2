@@ -186,3 +186,17 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
 
     return data;
 }
+
+template <typename T>
+T *receive_converted_data_with_packets(int sock_fd)
+{
+
+    DATA_RETURN data = receive_data_with_packets(sock_fd);
+
+    char *data_recovered = data.data;
+    int bytes_size = data.bytes_size;
+
+    T *result = reinterpret_cast<T *>(data_recovered);
+
+    return result;
+}
