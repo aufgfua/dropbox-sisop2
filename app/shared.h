@@ -12,6 +12,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utime.h>
+#include <arpa/inet.h>
+#include <map>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <queue>
+#include <string>
+#include <functional>
+#include <regex>
+#include <sstream>
 
 #include <mutex>
 
@@ -29,12 +45,16 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 
 #define MAX_FILENAME_SIZE 256
 #define MAX_PATH_SIZE 1024
+#define MAX_IP_SIZE 256
 
 #define CLI_TURN 0
 #define SRV_TURN 1
 #define START_TURN CLI_TURN
 
 #define SYNC_WAIT 4
+
+#define FE_PORT 50000
+#define SERVER_PORT 40001
 
 #include "header/shared/appflow.h"
 #include "header/shared/packets.h"
@@ -48,6 +68,8 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 
 #include "header/client/sync_file_cli.h"
 #include "header/server/sync_file_srv.h"
+
+#include "header/server/server_utils.h"
 
 time_t get_now()
 {

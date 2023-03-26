@@ -8,6 +8,8 @@
 #define PROCEDURE_DOWNLOAD_FROM_SERVER 4
 #define PROCEDURE_EXIT 99
 
+#define MAX_USERNAME_SIZE 256
+
 typedef struct STR_PROCEDURE_SELECT
 {
     uint16_t proc_id;
@@ -15,7 +17,7 @@ typedef struct STR_PROCEDURE_SELECT
 
 typedef struct STR_LOGIN
 {
-    char username[32];
+    char username[MAX_USERNAME_SIZE];
 } LOGIN;
 
 PROCEDURE_SELECT *send_procedure(int sock_fd, int proc_id)

@@ -1,15 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <pthread.h>
-#include <map>
 #include "shared.h"
 
-#define PORT 40001
 #define BUFFER_SIZE 256
 #define MAX_WAITING_CONNECTIONS 10
 #define BYTE_SIZE 8
@@ -17,9 +7,11 @@
 #define bool int
 #define LEAVE_KEY 'q'
 
-typedef struct STRUCT_CONNECTION_DATA
+typedef struct STR_CONNECTION_DATA
 {
+	unsigned long cli_s_addr;
 	int sock_fd, connection_id;
+	char username[MAX_USERNAME_SIZE];
 } CONNECTION_DATA;
 
 int connection_id = 0;
@@ -27,96 +19,8 @@ int global_sock_fd;
 
 map<int, long> last_sync;
 
-void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
-{
-
-	for (int i = 0; i < local_files.size(); i++)
-	{
-		USR_FILE local_file = local_files[i];
-
-		if (local_file.size == 0)
-			continue;
-
-		bool found = FALSE;
-
-		for (int j = 0; j < remote_files.size(); j++)
-		{
-			USR_FILE remote_file = remote_files[j];
-
-			if (strcmp(local_file.filename, remote_file.filename) == 0)
-			{
-				found = TRUE;
-				if (local_file.last_modified > remote_file.last_modified && local_file.size > 0)
-				{
-					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_UPLOAD, local_file.size, local_file.last_modified);
-
-					sync_files->push_back(*sync_file);
-				}
-				else if (local_file.last_modified < remote_file.last_modified && remote_file.size > 0)
-				{
-					UP_DOWN_COMMAND *sync_file = create_up_down_command(remote_file.filename, SERVER_SYNC_DOWNLOAD, remote_file.size, remote_file.last_modified);
-
-					sync_files->push_back(*sync_file);
-				}
-				else if (local_file.last_modified == remote_file.last_modified)
-				{
-					UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_KEEP_FILE, local_file.size, local_file.last_modified);
-
-					sync_files->push_back(*sync_file);
-				}
-			}
-		}
-
-		if (!found)
-		{
-			UP_DOWN_COMMAND *sync_file = create_up_down_command(local_file.filename, SERVER_SYNC_UPLOAD, local_file.size, local_file.last_modified);
-
-			sync_files->push_back(*sync_file);
-		}
-	}
-}
-
-void define_sync_remote_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
-{
-	for (int i = 0; i < remote_files.size(); i++)
-	{
-		USR_FILE remote_file = remote_files[i];
-
-		if (remote_file.size == 0)
-			continue;
-
-		bool found = FALSE;
-
-		for (int j = 0; j < sync_files->size(); j++)
-		{
-			UP_DOWN_COMMAND mapped_file = sync_files->at(j);
-
-			if (strcmp(mapped_file.filename, remote_file.filename) == 0)
-			{
-				found = TRUE;
-				break;
-			}
-		}
-
-		if (!found)
-		{
-			UP_DOWN_COMMAND *sync_file = create_up_down_command(remote_file.filename, SERVER_SYNC_DOWNLOAD, remote_file.size, remote_file.last_modified);
-
-			sync_files->push_back(*sync_file);
-		}
-	}
-}
-
-vector<UP_DOWN_COMMAND> define_sync_files(vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
-{
-	vector<UP_DOWN_COMMAND> sync_files;
-
-	define_sync_local_files(&sync_files, local_files, remote_files);
-
-	define_sync_remote_files(&sync_files, local_files, remote_files);
-
-	return sync_files;
-}
+mutex connections_list_mtx;
+vector<CONNECTION_DATA> connections;
 
 void sync_files_procedure_srv(int sock_fd, char *user_directory)
 {
@@ -198,9 +102,13 @@ void srv_turn(int sock_fd, char *user_directory)
 	srv_handle_procedure(sock_fd, procedure, user_directory);
 }
 
-void srv_connection_loop(int sock_fd, char *username, char *user_directory)
+void srv_connection_loop(int sock_fd, char *username)
 {
 	char turn = START_TURN;
+
+	char *user_directory = mount_base_path(username, SERVER_BASE_DIR);
+	create_folder_if_not_exists(user_directory);
+	printf("User directory: %s\n\n", user_directory);
 
 	uint32_t run = 0;
 
@@ -262,16 +170,16 @@ void *start_connection(void *data)
 		int sock_fd = conn_data->sock_fd;
 
 		char *username = get_username(sock_fd);
+		strcpy(conn_data->username, username);
 
-		char *user_directory = (char *)malloc(MAX_PATH_SIZE);
+		// save to the global list of connections - TODO cap connections at 2 at most
+		connections_list_mtx.lock();
+		connections.push_back(*conn_data);
+		connections_list_mtx.unlock();
 
 		printf("Con #%d - logged in as %s\n", connection_id, username);
 
-		strcpy(user_directory, mount_base_path(username, SERVER_BASE_DIR));
-		create_folder_if_not_exists(user_directory);
-		printf("User directory: %s\n\n", user_directory);
-
-		srv_connection_loop(sock_fd, username, user_directory);
+		srv_connection_loop(sock_fd, username);
 
 		printf("Connection %d closed\n\n", conn_data->sock_fd);
 		close(conn_data->sock_fd);
@@ -283,8 +191,45 @@ void *start_connection(void *data)
 	return NULL;
 }
 
+void manage_connections(int sock_fd)
+{
+	int new_conn_sock_fd;
+	struct sockaddr_in cli_addr;
+	socklen_t cli_len;
+
+	cli_len = sizeof(struct sockaddr_in);
+
+	while (TRUE)
+	{
+		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
+
+		if (new_conn_sock_fd == -1)
+		{
+			printf("ERROR on accept\n");
+		}
+		else
+		{
+			// print all fields from cli_addr
+			// TODO check if this connects correctly
+			// cout << "Connection from " << cli_addr.sin_addr.s_addr << ":" << ntohs(cli_addr.sin_port) << " accepted" << endl;
+
+			pthread_t connection_thread;
+			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
+
+			new_conn_data->sock_fd = new_conn_sock_fd;
+			new_conn_data->connection_id = connection_id;
+			new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
+			connection_id++;
+
+			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
+
+			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
+		}
+	}
+}
+
 // returns socket file descriptor
-int inicializar_servidor(int port)
+int init_server(int port)
 {
 	struct sockaddr_in serv_addr;
 	char buffer[BUFFER_SIZE];
@@ -320,46 +265,15 @@ int inicializar_servidor(int port)
 	return sock_fd;
 }
 
-void gerenciador_de_conexoes(int sock_fd)
-{
-	int new_conn_sock_fd;
-	struct sockaddr_in cli_addr;
-	socklen_t cli_len;
-
-	cli_len = sizeof(struct sockaddr_in);
-
-	while (TRUE)
-	{
-		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
-		if (new_conn_sock_fd == -1)
-		{
-			printf("ERROR on accept\n");
-		}
-		else
-		{
-			pthread_t connection_thread;
-			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
-
-			new_conn_data->sock_fd = new_conn_sock_fd;
-			new_conn_data->connection_id = connection_id;
-			connection_id++;
-
-			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
-
-			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
-		}
-	}
-}
-
 int main(int argc, char *argv[])
 {
 	int sock_fd;
 
-	int port = argc > 1 ? atoi(argv[1]) : PORT;
+	int port = argc > 1 ? atoi(argv[1]) : SERVER_PORT;
 
-	sock_fd = inicializar_servidor(port);
+	sock_fd = init_server(port);
 
-	gerenciador_de_conexoes(sock_fd);
+	manage_connections(sock_fd);
 
 	close(sock_fd);
 	return 0;

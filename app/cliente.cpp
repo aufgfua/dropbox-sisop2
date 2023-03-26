@@ -1,22 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <queue>
-#include <string>
-#include <functional>
-
-#include <regex>
-#include <sstream>
-
 #include "shared.h"
 
 #define BUFFER_SIZE 256
-#define MAX_CONNECTIONS 10
 #define BYTE_SIZE 8
 #define SOCKET_DEFAULT_PROTOCOL 0
 #define bool int
@@ -30,6 +14,120 @@ long last_sync = 0;
 string upload_target;
 string download_target;
 
+void *get_console_input_order_loop(void *data);
+
+void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
+{
+	switch (procedure->proc_id)
+	{
+	case PROCEDURE_NOP:
+		// printf("NOP\n");
+		break;
+
+	case PROCEDURE_SYNC_FILES:
+		// printf("Syncing files...\n\n");
+		send_files_list(sock_fd, user_directory);
+		cli_transaction_loop(sock_fd, user_directory);
+		last_sync = get_now();
+		break;
+
+	case PROCEDURE_LIST_SERVER:
+	{
+		printf("Listing server files...\n\n");
+		vector<USR_FILE> remote_files = receive_files_list(sock_fd);
+		print_usr_files(remote_files);
+	}
+	break;
+	case PROCEDURE_UPLOAD_TO_SERVER:
+	{
+		printf("Uploading %s to server...\n\n", upload_target.c_str());
+
+		char current_dir[MAX_PATH_SIZE];
+		strcpy(current_dir, get_current_path());
+
+		send_single_file(sock_fd, upload_target.c_str(), current_dir, CLIENT_SYNC_UPLOAD);
+
+		orders.push(PROCEDURE_SYNC_FILES);
+	}
+	break;
+	case PROCEDURE_DOWNLOAD_FROM_SERVER:
+	{
+		printf("Downloading %s from server...\n\n", download_target.c_str());
+		char current_dir[MAX_PATH_SIZE];
+		strcpy(current_dir, get_current_path());
+
+		DESIRED_FILE desired_file;
+
+		strcpy(desired_file.filename, download_target.c_str());
+
+		send_data_with_packets(sock_fd, (char *)&desired_file, sizeof(DESIRED_FILE));
+
+		receive_single_file(sock_fd, current_dir);
+	}
+	break;
+	case PROCEDURE_EXIT:
+		printf("Exiting...\n\n");
+		break;
+	}
+}
+
+int select_procedure(int sock_fd)
+{
+
+	if (get_now() - last_sync > SYNC_WAIT)
+	{
+		printf("Need to sync...\n");
+		return PROCEDURE_SYNC_FILES;
+	}
+
+	if (orders.size() > 0)
+	{
+		int order = orders.front();
+		orders.pop();
+		return order;
+	}
+
+	return PROCEDURE_NOP;
+}
+
+void cli_turn(int sock_fd)
+{
+	int proc_id = select_procedure(sock_fd);
+	// printf("Selected procedure: %d - ", proc_id);
+	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
+	cli_handle_procedure(sock_fd, procedure);
+}
+
+void cli_connection_loop(int sock_fd, char *username)
+{
+	char turn = START_TURN;
+
+	uint32_t run = 0;
+
+	while (TRUE)
+	{
+		// printf("\nRun %d - Turn %d\n", run, turn);
+		run++;
+		switch (turn)
+		{
+		case CLI_TURN:
+		{
+			cli_turn(sock_fd);
+		}
+		break;
+		case SRV_TURN:
+		{
+			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+			// printf("Received procedure: %d - ", procedure->proc_id);
+			cli_handle_procedure(sock_fd, procedure);
+		}
+		break;
+		}
+
+		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
+	}
+}
+
 void send_username(int sock_fd, char *username)
 {
 	LOGIN login;
@@ -39,7 +137,18 @@ void send_username(int sock_fd, char *username)
 	printf("Logged in as %s\n", username);
 }
 
-int connect_socket(struct hostent *server, int port, char *username)
+void manage_server_connection(int sock_fd, char *username)
+{
+	send_username(sock_fd, username);
+
+	strcpy(user_directory, mount_base_path(username, CLIENT_BASE_DIR));
+	create_folder_if_not_exists(user_directory);
+	printf("User directory: %s\n\n", user_directory);
+
+	cli_connection_loop(sock_fd, username);
+}
+
+int connect_socket(struct hostent *server, int port)
 {
 	int sock_fd, read_len, write_len;
 
@@ -74,26 +183,39 @@ int connect_socket(struct hostent *server, int port, char *username)
 	return sock_fd;
 }
 
-int select_procedure(int sock_fd)
+int main(int argc, char *argv[])
 {
-
-	if (get_now() - last_sync > SYNC_WAIT)
+	if (argc < 4)
 	{
-		printf("Need to sync...\n");
-		return PROCEDURE_SYNC_FILES;
+		fprintf(stderr, "usage '%s <username> <server_ip_address> <port>'\n", argv[0]);
+		exit(0);
 	}
 
-	if (orders.size() > 0)
-	{
-		int order = orders.front();
-		orders.pop();
-		return order;
-	}
+	int sock_fd;
 
-	return PROCEDURE_NOP;
+	char *username;
+	int port;
+	struct hostent *server;
+
+	username = argv[1];
+	server = gethostbyname(argv[2]);
+	port = atoi(argv[3]);
+
+	sock_fd = connect_socket(server, port);
+
+	printf("Connected to server\n");
+
+	pthread_t input_thread;
+	pthread_create(&input_thread, NULL, get_console_input_order_loop, (void *)NULL);
+
+	manage_server_connection(sock_fd, username);
+
+	close(sock_fd);
+
+	return 0;
 }
 
-void *get_input_order_loop(void *data)
+void *get_console_input_order_loop(void *arg)
 {
 	string order;
 	while (TRUE)
@@ -171,141 +293,4 @@ void *get_input_order_loop(void *data)
 		}
 	}
 	return NULL;
-}
-
-void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
-{
-	switch (procedure->proc_id)
-	{
-	case PROCEDURE_NOP:
-		// printf("NOP\n");
-		break;
-
-	case PROCEDURE_SYNC_FILES:
-		// printf("Syncing files...\n\n");
-		send_files_list(sock_fd, user_directory);
-		cli_transaction_loop(sock_fd, user_directory);
-		last_sync = get_now();
-		break;
-
-	case PROCEDURE_LIST_SERVER:
-	{
-		printf("Listing server files...\n\n");
-		vector<USR_FILE> remote_files = receive_files_list(sock_fd);
-		print_usr_files(remote_files);
-	}
-	break;
-	case PROCEDURE_UPLOAD_TO_SERVER:
-	{
-		printf("Uploading %s to server...\n\n", upload_target.c_str());
-
-		char current_dir[MAX_PATH_SIZE];
-		strcpy(current_dir, get_current_path());
-
-		send_single_file(sock_fd, upload_target.c_str(), current_dir, CLIENT_SYNC_UPLOAD);
-
-		orders.push(PROCEDURE_SYNC_FILES);
-	}
-	break;
-	case PROCEDURE_DOWNLOAD_FROM_SERVER:
-	{
-		printf("Downloading %s from server...\n\n", download_target.c_str());
-		char current_dir[MAX_PATH_SIZE];
-		strcpy(current_dir, get_current_path());
-
-		DESIRED_FILE desired_file;
-
-		strcpy(desired_file.filename, download_target.c_str());
-
-		send_data_with_packets(sock_fd, (char *)&desired_file, sizeof(DESIRED_FILE));
-
-		receive_single_file(sock_fd, current_dir);
-	}
-	break;
-	case PROCEDURE_EXIT:
-		printf("Exiting...\n\n");
-		break;
-	}
-}
-
-void cli_turn(int sock_fd)
-{
-	int proc_id = select_procedure(sock_fd);
-	// printf("Selected procedure: %d - ", proc_id);
-	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
-	cli_handle_procedure(sock_fd, procedure);
-}
-
-void cli_connection_loop(int sock_fd, char *username)
-{
-	char turn = START_TURN;
-
-	uint32_t run = 0;
-
-	while (TRUE)
-	{
-		// printf("\nRun %d - Turn %d\n", run, turn);
-		run++;
-		switch (turn)
-		{
-		case CLI_TURN:
-		{
-			cli_turn(sock_fd);
-		}
-		break;
-		case SRV_TURN:
-		{
-			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
-			// printf("Received procedure: %d - ", procedure->proc_id);
-			cli_handle_procedure(sock_fd, procedure);
-		}
-		break;
-		}
-
-		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
-	}
-}
-
-void gerencia_conexao(int sock_fd, char *username)
-{
-	send_username(sock_fd, username);
-
-	strcpy(user_directory, mount_base_path(username, CLIENT_BASE_DIR));
-	create_folder_if_not_exists(user_directory);
-	printf("User directory: %s\n\n", user_directory);
-
-	cli_connection_loop(sock_fd, username);
-}
-
-int main(int argc, char *argv[])
-{
-	int sock_fd;
-
-	struct sockaddr_in serv_addr;
-	struct hostent *server;
-	char *username;
-	int port;
-
-	if (argc < 4)
-	{
-		fprintf(stderr, "usage '%s <username> <server_ip_address> <port>'\n", argv[0]);
-		exit(0);
-	}
-
-	server = gethostbyname(argv[2]);
-	username = argv[1];
-	port = atoi(argv[3]);
-
-	sock_fd = connect_socket(server, port, username);
-
-	printf("Connected to server\n");
-
-	pthread_t input_thread;
-	pthread_create(&input_thread, NULL, get_input_order_loop, (void *)NULL);
-
-	gerencia_conexao(sock_fd, username);
-
-	close(sock_fd);
-
-	return 0;
 }
