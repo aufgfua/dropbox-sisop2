@@ -36,18 +36,18 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
 
 #define SYNC_WAIT 4
 
-#include "header/appflow.h"
-#include "header/packets.h"
+#include "header/shared/appflow.h"
+#include "header/shared/packets.h"
 
-#include "header/threadssync.h"
+#include "header/server/threadssync.h"
 
-#include "header/fileslist.h"
-#include "header/updowncmd.h"
-#include "header/filetranscontroller.h"
-#include "header/filetrans.h"
+#include "header/shared/fileslist.h"
+#include "header/shared/updowncmd.h"
+#include "header/shared/filetranscontroller.h"
+#include "header/shared/filetrans.h"
 
-#include "header/sync_file_cli.h"
-#include "header/sync_file_srv.h"
+#include "header/client/sync_file_cli.h"
+#include "header/server/sync_file_srv.h"
 
 time_t get_now()
 {
