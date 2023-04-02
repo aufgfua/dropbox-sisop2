@@ -13,6 +13,7 @@
 #include <pwd.h>
 #include <queue>
 #include <regex>
+#include <signal.h>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -68,6 +69,9 @@ T *receive_converted_data_with_packets(int sock_fd);
 #include "header/server/sync_file_srv.h"
 
 #include "header/server/server_utils.h"
+
+#include "header/frontend/redirectMessages.h"
+#include "frontend.h"
 
 time_t get_now()
 {

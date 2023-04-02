@@ -9,10 +9,11 @@ typedef struct STR_NUMBER_OF_PACKETS
 
 typedef struct packet
 {
-    uint16_t type;                          // Tipo do pacote (p.ex. DATA | CMD)
-    uint16_t seqn;                          // Número de sequência
-    uint64_t total_size;                    // Número total de fragmentos
-    uint16_t length;                        // Comprimento do payload
+    uint16_t type;       // Tipo do pacote (p.ex. DATA | CMD)
+    uint16_t seqn;       // Número de sequência
+    uint64_t total_size; // Número total de fragmentos
+    uint16_t length;     // Comprimento do payload
+    uint16_t restart_loop;
     char _payload[MAX_PACKET_PAYLOAD_SIZE]; // Dados do pacote
 } packet;
 
@@ -111,6 +112,7 @@ vector<packet> *fragment_data(char *data, int data_size)
             p.seqn = i;
             p.total_size = number_of_packets;
             p.length = data_size > MAX_PACKET_PAYLOAD_SIZE ? MAX_PACKET_PAYLOAD_SIZE : data_size;
+            p.restart_loop = FALSE;
             memcpy(p._payload, data, p.length);
             packets->push_back(p);
             data += p.length;
@@ -130,7 +132,17 @@ void send_data_with_packets(int sock_fd, char *data, int bytes_size)
     number_of_packets.pck_number = get_number_of_packets(bytes_size);
     number_of_packets.total_size = bytes_size;
 
-    write_all_bytes(sock_fd, (char *)&number_of_packets, sizeof(NUMBER_OF_PACKETS));
+    packet number_of_packets_packet = {
+        .type = PACKET_TYPE_DATA,
+        .seqn = 0,
+        .total_size = 1,
+        .length = sizeof(NUMBER_OF_PACKETS),
+        .restart_loop = FALSE,
+    };
+
+    memcpy(number_of_packets_packet._payload, &number_of_packets, sizeof(NUMBER_OF_PACKETS));
+
+    write_all_bytes(sock_fd, (char *)&number_of_packets_packet, sizeof(packet));
 
     int i;
     for (i = 0; i < number_of_packets.pck_number; i++)
@@ -144,12 +156,13 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
 {
 
     // read NUMBER_OF_PACKETS
-    char *buffer = read_all_bytes(sock_fd, sizeof(NUMBER_OF_PACKETS));
+    char *buffer = read_all_bytes(sock_fd, sizeof(packet));
     if (buffer == NULL)
     {
         throw "Error reading number of packets";
     }
-    NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)buffer;
+    packet *number_of_packets_packet = (packet *)buffer;
+    NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)number_of_packets_packet->_payload;
 
     // printf("Number of packets: %d\n", number_of_packets->pck_number);
 

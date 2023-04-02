@@ -173,7 +173,13 @@ int connect_socket(struct hostent *server, int port)
 
 	bzero(&(serv_addr.sin_zero), BYTE_SIZE);
 
-	int conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+	int conn_return = -1;
+	while (conn_return < 0)
+	{
+		conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+		sleep(0.5);
+	}
+
 	if (conn_return < 0)
 	{
 		printf("ERROR connecting\n");
@@ -183,25 +189,44 @@ int connect_socket(struct hostent *server, int port)
 	return sock_fd;
 }
 
+void run_frontend(int fe_port, char *srv_ip, int srv_port)
+{
+	FE_SERVER_ADDRESS fe_srv_address;
+	strcpy(fe_srv_address.ip_addr, srv_ip);
+	fe_srv_address.port = srv_port;
+
+	FE_RUN_DATA fe_run_data;
+	fe_run_data.fe_port = fe_port;
+	fe_run_data.srv_address = fe_srv_address;
+
+	pthread_t fe_thread;
+	pthread_create(&fe_thread, NULL, frontend_main, (void *)&fe_run_data);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 4)
 	{
-		fprintf(stderr, "usage '%s <username> <server_ip_address> <port>'\n", argv[0]);
+		fprintf(stderr, "usage '%s <username> <server_ip_address> <port> [frontend_port]'\n", argv[0]);
 		exit(0);
 	}
 
 	int sock_fd;
 
 	char *username;
-	int port;
+	int srv_port, fe_port;
 	struct hostent *server;
+	char server_ip_string[MAX_IP_SIZE];
 
 	username = argv[1];
+	strcpy(server_ip_string, argv[2]);
 	server = gethostbyname(argv[2]);
-	port = atoi(argv[3]);
+	srv_port = atoi(argv[3]);
+	fe_port = argc > 4 ? atoi(argv[4]) : FE_PORT;
 
-	sock_fd = connect_socket(server, port);
+	run_frontend(fe_port, server_ip_string, srv_port);
+
+	sock_fd = connect_socket(server, fe_port);
 
 	printf("Connected to server\n");
 

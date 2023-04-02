@@ -111,33 +111,41 @@ void srv_connection_loop(int sock_fd, char *username)
 	printf("User directory: %s\n\n", user_directory);
 
 	uint32_t run = 0;
-
-	while (TRUE)
+	try
 	{
-		// printf("\nRun %d - Turn %d\n", run, turn);
-		run++;
-		switch (turn)
+		while (TRUE)
 		{
-		case CLI_TURN:
-		{
-			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
-			// printf("Received procedure: %d - ", procedure->proc_id);
-			bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
-			if (EXIT_NOW)
-			{
-				return;
-			}
-		}
-		break;
-		case SRV_TURN:
-		{
-			srv_turn(sock_fd, user_directory);
-		}
-		break;
-		}
+			// printf("\nRun %d - Turn %d\n", run, turn);
 
-		sleep(1);
-		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
+			run++;
+			switch (turn)
+			{
+			case CLI_TURN:
+			{
+				PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+				// printf("Received procedure: %d - ", procedure->proc_id);
+				bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
+				if (EXIT_NOW)
+				{
+					printf("Connection %d closed\n\n", sock_fd);
+					return;
+				}
+			}
+			break;
+			case SRV_TURN:
+			{
+				srv_turn(sock_fd, user_directory);
+			}
+			break;
+			}
+
+			sleep(1);
+			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
+		}
+	}
+	catch (const std::exception &e)
+	{
+		printf("Exception: %s\n", e.what());
 	}
 }
 

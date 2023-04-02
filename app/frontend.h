@@ -1,5 +1,3 @@
-#include "shared.h"
-
 #define BUFFER_SIZE 256
 #define BYTE_SIZE 8
 #define MAX_WAITING_CLIENT_CONNECTIONS 1
@@ -9,38 +7,56 @@
 // FOR NOW - TODO READ THIS FROM DOCUMENT
 #define SERVER_IP "localhost"
 
-typedef struct STR_SERVER_ADDRESS
+typedef struct STR_FE_SERVER_ADDRESS
 {
-    char srv_ip_addr[MAX_IP_SIZE];
+    char ip_addr[MAX_IP_SIZE];
     int port;
-} SERVER_ADDRESS;
+} FE_SERVER_ADDRESS;
 
-typedef struct STR_CONNECTION_DATA
+typedef struct STR_FE_RUN_DATA
+{
+    int fe_port;
+    FE_SERVER_ADDRESS srv_address;
+} FE_RUN_DATA;
+
+typedef struct STR_FE_CONNECTION_DATA
 {
     unsigned long conn_s_addr;
     int sock_fd;
     char username[MAX_USERNAME_SIZE];
-} CONNECTION_DATA;
+} FE_CONNECTION_DATA;
 
-CONNECTION_DATA cli_connection_data, srv_connection_data;
+FE_CONNECTION_DATA cli_connection_data, srv_connection_data;
 
-int global_sock_fd;
+int global_fe_sock_fd;
+FE_SERVER_ADDRESS global_fe_server_address;
 
-// TODO - get this data from document
-SERVER_ADDRESS get_server_address()
+void *handle_client_to_server_messages(void *data)
 {
-    SERVER_ADDRESS srv_addr;
-
-    strcpy(srv_addr.srv_ip_addr, SERVER_IP);
-    srv_addr.port = SERVER_PORT;
-
-    return srv_addr;
+    while (TRUE)
+    {
+        redirectMessage(cli_connection_data.sock_fd, srv_connection_data.sock_fd);
+    }
 }
 
-void connect_to_server(SERVER_ADDRESS srv_address)
+void *handle_server_to_client_messages(void *data)
+{
+    while (TRUE)
+    {
+        redirectMessage(srv_connection_data.sock_fd, cli_connection_data.sock_fd);
+    }
+}
+
+// TODO - get this data from document
+FE_SERVER_ADDRESS get_server_address()
+{
+    return global_fe_server_address;
+}
+
+void connect_to_server(FE_SERVER_ADDRESS srv_address)
 {
     int sock_fd, read_len, write_len;
-    struct hostent *server = gethostbyname(srv_address.srv_ip_addr);
+    struct hostent *server = gethostbyname(srv_address.ip_addr);
     int port = srv_address.port;
 
     struct sockaddr_in serv_addr;
@@ -71,7 +87,7 @@ void connect_to_server(SERVER_ADDRESS srv_address)
         exit(0);
     }
 
-    CONNECTION_DATA *srv_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
+    FE_CONNECTION_DATA *srv_conn_data = (FE_CONNECTION_DATA *)malloc(sizeof(FE_CONNECTION_DATA));
 
     srv_conn_data->sock_fd = sock_fd;
     srv_conn_data->conn_s_addr = serv_addr.sin_addr.s_addr;
@@ -97,7 +113,7 @@ void handle_cli_connection(int sock_fd)
     // successfully accepted connection
 
     pthread_t connection_thread;
-    CONNECTION_DATA *cli_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
+    FE_CONNECTION_DATA *cli_conn_data = (FE_CONNECTION_DATA *)malloc(sizeof(FE_CONNECTION_DATA));
 
     cli_conn_data->sock_fd = cli_conn_sock_fd;
     cli_conn_data->conn_s_addr = cli_addr.sin_addr.s_addr;
@@ -137,9 +153,9 @@ int init_frontend(int port)
 
     listen(sock_fd, MAX_WAITING_CLIENT_CONNECTIONS);
 
-    printf("Server listening on port %d\n\n", port);
+    printf("Frontend Server listening on port %d\n\n", port);
 
-    global_sock_fd = sock_fd;
+    global_fe_sock_fd = sock_fd;
     return sock_fd;
 }
 
@@ -149,18 +165,29 @@ void frontend_connection_procedure(int port, int sock_fd)
 
     handle_cli_connection(sock_fd);
 
-    SERVER_ADDRESS srv_connection_data = get_server_address();
+    FE_SERVER_ADDRESS srv_connection_data = get_server_address();
 
     connect_to_server(srv_connection_data);
+
+    pthread_t cli_thread, srv_thread;
+
+    printf("Start cli-fe connection\n");
+    pthread_create(&cli_thread, NULL, handle_client_to_server_messages, (void *)NULL);
+
+    printf("Start fe-srv connection\n");
+    pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
 
     // TODO - create loop to switch between client and server communication
 }
 
-int main(int argc, char *argv[])
+void *frontend_main(void *data)
 {
+    FE_RUN_DATA *run_data = (FE_RUN_DATA *)data;
+
     int sock_fd;
 
-    int port = argc > 1 ? atoi(argv[1]) : FE_PORT;
+    int port = run_data->fe_port;
+    global_fe_server_address = run_data->srv_address;
 
     frontend_connection_procedure(port, sock_fd);
 
