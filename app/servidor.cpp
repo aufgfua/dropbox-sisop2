@@ -145,7 +145,7 @@ char *get_username(int sock_fd)
 {
 	LOGIN *login;
 	printf("Waiting for username...\n");
-	char *buffer = read_all_bytes(sock_fd, sizeof(LOGIN));
+	char *buffer = (char *)receive_converted_data_with_packets<LOGIN>(sock_fd);
 	printf("Username received\n");
 
 	if (buffer == NULL)

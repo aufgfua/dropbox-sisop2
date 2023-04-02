@@ -1,35 +1,29 @@
-#include <ctime>
-#include <iostream>
-#include <dirent.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <vector>
-#include <errno.h>
-#include <pwd.h>
-#include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <utime.h>
 #include <arpa/inet.h>
-#include <map>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <queue>
-#include <string>
+#include <ctime>
+#include <dirent.h>
+#include <errno.h>
+#include <fstream>
 #include <functional>
+#include <iostream>
+#include <map>
+#include <mutex>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <pthread.h>
+#include <pwd.h>
+#include <queue>
 #include <regex>
 #include <sstream>
-
-#include <mutex>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
+#include <unistd.h>
+#include <utime.h>
+#include <vector>
 
 using namespace std;
 
@@ -42,6 +36,10 @@ int LOG_MODE = LOG_MODE_OFF;
 
 char *read_all_bytes(int sockfd, int bytes_to_read);
 int write_all_bytes(int sockfd, char *buffer, int bytes_to_write);
+
+void send_data_with_packets(int sock_fd, char *data, int bytes_size);
+template <typename T>
+T *receive_converted_data_with_packets(int sock_fd);
 
 #define MAX_FILENAME_SIZE 256
 #define MAX_PATH_SIZE 1024

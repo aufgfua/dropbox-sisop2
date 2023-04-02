@@ -25,12 +25,12 @@ PROCEDURE_SELECT *send_procedure(int sock_fd, int proc_id)
     PROCEDURE_SELECT *procedure = (PROCEDURE_SELECT *)malloc(sizeof(PROCEDURE_SELECT));
     procedure->proc_id = proc_id;
 
-    write_all_bytes(sock_fd, (char *)procedure, sizeof(PROCEDURE_SELECT));
+    send_data_with_packets(sock_fd, (char *)procedure, sizeof(PROCEDURE_SELECT));
     return procedure;
 }
 
 PROCEDURE_SELECT *receive_procedure(int sock_fd)
 {
-    char *buffer = read_all_bytes(sock_fd, sizeof(PROCEDURE_SELECT));
+    char *buffer = (char *)receive_converted_data_with_packets<PROCEDURE_SELECT>(sock_fd);
     return (PROCEDURE_SELECT *)buffer;
 }

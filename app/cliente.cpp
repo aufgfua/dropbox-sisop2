@@ -132,7 +132,7 @@ void send_username(int sock_fd, char *username)
 {
 	LOGIN login;
 	strcpy(login.username, username);
-	write_all_bytes(sock_fd, (char *)&login, sizeof(LOGIN));
+	send_data_with_packets(sock_fd, (char *)&login, sizeof(LOGIN));
 
 	printf("Logged in as %s\n", username);
 }
