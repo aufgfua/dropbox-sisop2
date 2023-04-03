@@ -220,6 +220,7 @@ int main(int argc, char *argv[])
 
 	run_frontend(fe_port, server_ip_string, srv_port);
 
+	cout << "Starting client..." << endl;
 	sock_fd = connect_socket(server, fe_port);
 
 	cout << "Connected to server" << endl;
