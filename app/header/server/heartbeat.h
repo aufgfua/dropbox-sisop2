@@ -3,6 +3,7 @@
 #define HEARTBEAT_BUFFER_SIZE 128
 #define HEARTBEAT_MSG "HB"
 
+bool primary_server_died = FALSE;
 typedef struct STR_HEARTBEAT_CONNECTION
 {
     int heartbeat_sock_fd;
@@ -89,40 +90,49 @@ void *start_heartbeat_primary_rm(void *data)
 
 void *secondary_heartbeat_loop(void *data)
 {
-    HEARTBEAT_CONNECTION *hb_conn = (HEARTBEAT_CONNECTION *)data;
-    int sock_fd = hb_conn->heartbeat_sock_fd;
-
-    int rm_connection_sock_fd = hb_conn->rm_connection_sock_fd;
-
-    while (TRUE)
+    try
     {
-        this_thread::sleep_for(chrono::milliseconds(HEARTBEAT_TIMEOUT * 1000));
+        HEARTBEAT_CONNECTION *hb_conn = (HEARTBEAT_CONNECTION *)data;
+        int sock_fd = hb_conn->heartbeat_sock_fd;
 
-        // RECEIVE
-        char heartbeat_message[HEARTBEAT_BUFFER_SIZE];
-        int n = recv(sock_fd, heartbeat_message, HEARTBEAT_BUFFER_SIZE, 0);
-        if (n < 0)
-        {
-            std::cerr << "Error receiving heartbeat message" << std::endl;
-            break;
-        }
-        else if (n == 0)
-        {
-            std::cerr << "Heartbeat connection closed!!!!" << std::endl;
-            // TODO PROCESS RM HEARTBEAT FAILURE
-            break;
-        }
-        cout << "HB> " << sock_fd << " ---- Receive: <3 - ";
+        int rm_connection_sock_fd = hb_conn->rm_connection_sock_fd;
 
-        // SEND
-        char response[HEARTBEAT_BUFFER_SIZE];
-        strcpy(response, HEARTBEAT_MSG);
-        if (send(sock_fd, response, HEARTBEAT_BUFFER_SIZE, 0) < 0)
+        while (TRUE)
         {
-            std::cerr << "Error sending heartbeat response" << std::endl;
-            continue;
+            this_thread::sleep_for(chrono::milliseconds(HEARTBEAT_TIMEOUT * 1000));
+
+            // RECEIVE
+            char heartbeat_message[HEARTBEAT_BUFFER_SIZE];
+            int n = recv(sock_fd, heartbeat_message, HEARTBEAT_BUFFER_SIZE, 0);
+            if (n < 0)
+            {
+                std::cerr << "Error receiving heartbeat message" << std::endl;
+                break;
+            }
+            else if (n == 0)
+            {
+                std::cerr << "Heartbeat connection closed!!!!" << std::endl;
+                primary_server_died = TRUE;
+                throw PrimaryRMDiedException();
+                break;
+            }
+            cout << "HB> " << sock_fd << " ---- Receive: <3 - ";
+
+            // SEND
+            char response[HEARTBEAT_BUFFER_SIZE];
+            strcpy(response, HEARTBEAT_MSG);
+            if (send(sock_fd, response, HEARTBEAT_BUFFER_SIZE, 0) < 0)
+            {
+                std::cerr << "Error sending heartbeat response" << std::endl;
+                continue;
+            }
+            cout << "Send: <3" << endl;
         }
-        cout << "Send: <3" << endl;
+    }
+    catch (PrimaryRMDiedException e)
+    {
+        cout << "HB-ERR> Primary RM died!" << endl;
+        begin_election();
     }
     return NULL;
 }

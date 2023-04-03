@@ -87,24 +87,42 @@ void files_download_loop(int sock_fd)
 
 void handle_data_send_loop(int sock_fd)
 {
-    while (TRUE)
+    try
     {
-        RM_PROCEDURE_SELECT *rm_procedure_select = receive_rm_procedure_select(sock_fd);
+        while (TRUE)
+        {
+            if (primary_server_died)
+            {
+                primary_server_died = FALSE;
+                throw PrimaryRMDiedException();
+            }
+            RM_PROCEDURE_SELECT *rm_procedure_select = receive_rm_procedure_select(sock_fd);
 
-        switch (rm_procedure_select->procedure_id)
-        {
-        case RM_PROC_FILE:
-        {
-            rm_file_download(sock_fd);
+            switch (rm_procedure_select->procedure_id)
+            {
+            case RM_PROC_FILE:
+            {
+                rm_file_download(sock_fd);
+            }
+            break;
+            case RM_PROC_CONTROL_DATA:
+            {
+                cout << "Receiving control data:" << endl;
+                rm_receive_control_data(sock_fd);
+            }
+            break;
+            }
         }
-        break;
-        case RM_PROC_CONTROL_DATA:
-        {
-            cout << "Receiving control data:" << endl;
-            rm_receive_control_data(sock_fd);
-        }
-        break;
-        }
+    }
+    catch (ConnectionLostException &e)
+    {
+        cout << "RM-ERR> Connection lost" << endl;
+        return;
+    }
+    catch (PrimaryRMDiedException &e)
+    {
+        cout << "RM-ERR> Primary RM died" << endl;
+        return;
     }
 }
 
@@ -116,6 +134,8 @@ void secondary_rm_replicate_state(int sock_fd)
 
     cout << "Start cloning changes" << endl;
     handle_data_send_loop(sock_fd);
+
+    close(sock_fd);
 }
 
 void secondary_replica_manager_start(int port, struct hostent *main_server, int primary_rm_server_port)

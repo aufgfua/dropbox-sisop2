@@ -25,3 +25,12 @@ public:
         return "Connection lost";
     }
 };
+
+class PrimaryRMDiedException : public std::exception
+{
+public:
+    virtual const char *what() const throw()
+    {
+        return "Primary RM died";
+    }
+};
