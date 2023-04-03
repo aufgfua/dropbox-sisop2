@@ -150,6 +150,8 @@ void srv_connection_loop(int sock_fd, char *username)
 			case CLI_TURN:
 			{
 				PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+				cout << "Procedure: " << procedure->proc_id << endl
+					 << endl;
 
 				bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
 				if (EXIT_NOW)
