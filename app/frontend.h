@@ -33,6 +33,8 @@ int cont = 0;
 mutex cli_read_mtx;
 mutex srv_read_mtx;
 
+void *handle_server_to_client_messages(void *data);
+
 void *handle_client_to_server_messages(void *data)
 {
 
