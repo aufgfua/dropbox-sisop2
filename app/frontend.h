@@ -172,6 +172,7 @@ int frontend_connection_procedure(int port, int sock_fd)
 
     FE_SERVER_ADDRESS srv_connection_data = get_server_address();
 
+    cout << "FE connecting to " << global_fe_server_address.ip_addr << ":" << global_fe_server_address.port << endl;
     connect_to_server(srv_connection_data);
 
     pthread_t cli_thread, srv_thread;
