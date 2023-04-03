@@ -1,5 +1,6 @@
 #define MAX_PACKET_PAYLOAD_SIZE 1024
 #define PACKET_TYPE_DATA 1
+#define PACKET_TYPE_CONTROL 2
 
 typedef struct STR_NUMBER_OF_PACKETS
 {
@@ -102,7 +103,7 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
 void send_restart_packet(int sock_fd)
 {
     packet restart_packet = {
-        .type = PACKET_TYPE_DATA,
+        .type = PACKET_TYPE_CONTROL,
         .seqn = 0,
         .total_size = 1,
         .length = 0,
@@ -259,7 +260,7 @@ T *receive_converted_data_with_packets(int sock_fd)
 void send_OK_packet(int sock_fd)
 {
     packet ok_packet = {
-        .type = PACKET_TYPE_DATA,
+        .type = PACKET_TYPE_CONTROL,
         .seqn = 0,
         .total_size = 1,
         .length = 0,
