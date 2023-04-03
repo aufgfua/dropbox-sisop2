@@ -1,3 +1,21 @@
+
+typedef struct STR_CONNECTION_DATA
+{
+    unsigned long cli_s_addr;
+    int sock_fd, connection_id;
+    char username[MAX_USERNAME_SIZE];
+} CONNECTION_DATA;
+
+typedef struct STR_RM_CONNECTION
+{
+    unsigned long s_addr;
+    int sock_fd;
+    in_port_t port;
+} RM_CONNECTION;
+
+vector<CONNECTION_DATA> connections;
+vector<RM_CONNECTION> rm_connections;
+
 void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
 {
 

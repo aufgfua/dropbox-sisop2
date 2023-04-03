@@ -1,9 +1,25 @@
 int new_rm_connections_sock_fd;
 int new_rm_connections_port;
 
+void *handle_new_rm_connection(void *data)
+{
+    RM_CONNECTION *rm_data = (RM_CONNECTION *)data;
+    int sock_fd = rm_data->sock_fd;
+    int port = rm_data->port;
+    int s_addr = rm_data->s_addr;
+
+    cout << "New RM connection " << sock_fd << " handled" << endl
+         << endl;
+    sleep(10);
+
+    return NULL;
+}
+
 void *manage_new_rm_connections(void *data)
 {
-    int sock_fd = *((int *)data);
+    int *int_data = (int *)data;
+    int sock_fd = *int_data;
+
     int new_conn_sock_fd;
     struct sockaddr_in new_rm_addr;
     socklen_t new_rm_len;
@@ -16,7 +32,7 @@ void *manage_new_rm_connections(void *data)
 
         if (new_conn_sock_fd == -1)
         {
-            printf("ERROR on accept\n");
+            cout << "ERROR on accept" << endl;
         }
         else
         {
@@ -28,9 +44,13 @@ void *manage_new_rm_connections(void *data)
             new_rm_data->s_addr = new_rm_addr.sin_addr.s_addr;
             new_rm_data->port = new_rm_addr.sin_port;
 
-            printf("New RM connection %d accepted\n\n", new_rm_data->sock_fd);
+            cout << "New RM connection " << new_rm_data->sock_fd << " accepted" << endl
+                 << endl;
+            rm_connections.push_back(*new_rm_data);
 
-            pthread_create(&new_rm_connection_thread, NULL, start_connection, (void *)new_rm_data);
+            pthread_create(&new_rm_connection_thread, NULL, handle_new_rm_connection, (void *)new_rm_data);
         }
     }
+
+    return NULL;
 }

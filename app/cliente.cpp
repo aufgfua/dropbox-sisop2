@@ -1,10 +1,5 @@
 #include "shared.h"
 
-#define BUFFER_SIZE 256
-#define BYTE_SIZE 8
-#define SOCKET_DEFAULT_PROTOCOL 0
-#define bool int
-
 typedef struct STR_CLI_CONNECTION_DATA
 {
 	int sock_fd;
@@ -31,11 +26,11 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	switch (procedure->proc_id)
 	{
 	case PROCEDURE_NOP:
-		// printf("NOP\n");
+
 		break;
 
 	case PROCEDURE_SYNC_FILES:
-		// printf("Syncing files...\n\n");
+
 		send_files_list(sock_fd, user_directory);
 		cli_transaction_loop(sock_fd, user_directory);
 		last_sync = get_now();
@@ -43,14 +38,16 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 
 	case PROCEDURE_LIST_SERVER:
 	{
-		printf("Listing server files...\n\n");
+		cout << "Listing server files..." << endl
+			 << endl;
 		vector<USR_FILE> remote_files = receive_files_list(sock_fd);
 		print_usr_files(remote_files);
 	}
 	break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
 	{
-		printf("Uploading %s to server...\n\n", upload_target.c_str());
+		cout << "Uploading " << upload_target.c_str() << " to server..." << endl
+			 << endl;
 
 		char current_dir[MAX_PATH_SIZE];
 		strcpy(current_dir, get_current_path());
@@ -62,7 +59,8 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	break;
 	case PROCEDURE_DOWNLOAD_FROM_SERVER:
 	{
-		printf("Downloading %s from server...\n\n", download_target.c_str());
+		cout << "Downloading " << download_target.c_str() << " from server..." << endl
+			 << endl;
 		char current_dir[MAX_PATH_SIZE];
 		strcpy(current_dir, get_current_path());
 
@@ -76,7 +74,10 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 	}
 	break;
 	case PROCEDURE_EXIT:
-		printf("Exiting...\n\n");
+		cout << "Exiting..." << endl
+			 << endl;
+		wait_for_OK_packet(sock_fd);
+		close(sock_fd);
 		break;
 	}
 }
@@ -86,7 +87,7 @@ int select_procedure(int sock_fd)
 
 	if (get_now() - last_sync > SYNC_WAIT)
 	{
-		printf("Need to sync...\n");
+		cout << "Need to sync..." << endl;
 		return PROCEDURE_SYNC_FILES;
 	}
 
@@ -103,7 +104,7 @@ int select_procedure(int sock_fd)
 void cli_turn(int sock_fd)
 {
 	int proc_id = select_procedure(sock_fd);
-	// printf("Selected procedure: %d - ", proc_id);
+
 	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
 	cli_handle_procedure(sock_fd, procedure);
 }
@@ -123,7 +124,7 @@ void *cli_connection_loop(void *data)
 	{
 		try
 		{
-			// printf("\nRun %d - Turn %d\n", run, turn);
+
 			run++;
 			switch (turn)
 			{
@@ -135,7 +136,7 @@ void *cli_connection_loop(void *data)
 			case SRV_TURN:
 			{
 				PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
-				// printf("Received procedure: %d - ", procedure->proc_id);
+
 				cli_handle_procedure(sock_fd, procedure);
 			}
 			break;
@@ -145,7 +146,7 @@ void *cli_connection_loop(void *data)
 		}
 		catch (OutOfSyncException e)
 		{
-			printf("Out of sync exception: %s\n", e.what());
+			cout << "Out of sync exception: " << e.what() << endl;
 		}
 	}
 
@@ -158,7 +159,7 @@ void send_username(int sock_fd, char *username)
 	strcpy(login.username, username);
 	send_data_with_packets(sock_fd, (char *)&login, sizeof(LOGIN));
 
-	printf("Logged in as %s\n", username);
+	cout << "Logged in as " << username << endl;
 }
 
 void manage_server_connection(int sock_fd, char *username)
@@ -167,7 +168,8 @@ void manage_server_connection(int sock_fd, char *username)
 
 	strcpy(user_directory, mount_base_path(username, CLIENT_BASE_DIR));
 	create_folder_if_not_exists(user_directory);
-	printf("User directory: %s\n\n", user_directory);
+	cout << "User directory: " << user_directory << endl
+		 << endl;
 
 	CLI_CONNECTION_DATA cli_conn_data;
 	cli_conn_data.sock_fd = sock_fd;
@@ -176,7 +178,7 @@ void manage_server_connection(int sock_fd, char *username)
 	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)&cli_conn_data);
 }
 
-int connect_socket(struct hostent *server, int port)
+int local_connect_socket(struct hostent *server, int port)
 {
 	int sock_fd, read_len, write_len;
 
@@ -235,7 +237,7 @@ int main(int argc, char *argv[])
 {
 	if (argc < 4)
 	{
-		fprintf(stderr, "usage '%s <username> <server_ip_address> <port> [frontend_port]'\n", argv[0]);
+		cout << "usage " << argv[0] << "<username> <server_ip_address> <port> [frontend_port]'" << endl;
 		exit(0);
 	}
 
@@ -254,9 +256,9 @@ int main(int argc, char *argv[])
 
 	run_frontend(fe_port, server_ip_string, srv_port);
 
-	sock_fd = connect_socket(server, fe_port);
+	sock_fd = local_connect_socket(server, fe_port);
 
-	printf("Connected to server\n");
+	cout << "Connected to server" << endl;
 
 	pthread_t input_thread;
 	pthread_create(&input_thread, NULL, get_console_input_order_loop, (void *)NULL);
@@ -282,7 +284,8 @@ void *get_console_input_order_loop(void *arg)
 			regex_search(order, match, substring);
 			string file_name = match[1];
 
-			printf("Downloading %s\n\n", file_name.c_str());
+			cout << "Downloading " << file_name.c_str() << endl
+				 << endl;
 
 			download_target = file_name;
 			orders.push(PROCEDURE_DOWNLOAD_FROM_SERVER);
@@ -298,7 +301,8 @@ void *get_console_input_order_loop(void *arg)
 			regex_search(order, match, substring);
 			string file_path = match[1];
 
-			printf("Uploading %s\n\n", file_path.c_str());
+			cout << "Uploading " << file_path.c_str() << endl
+				 << endl;
 
 			upload_target = file_path;
 			orders.push(PROCEDURE_UPLOAD_TO_SERVER);
@@ -314,7 +318,9 @@ void *get_console_input_order_loop(void *arg)
 			regex_search(order, match, substring);
 			string file_name = match[1];
 
-			printf("Deleting %s\n\n", file_name.c_str());
+			cout << "Deleting " << file_name.c_str() << endl
+				 << endl;
+			;
 			continue;
 		}
 
@@ -328,18 +334,20 @@ void *get_console_input_order_loop(void *arg)
 		{
 			vector<USR_FILE> *files_vector = list_files(user_directory);
 			print_usr_files(*files_vector);
-			printf("\n");
+			cout << endl;
 			continue;
 		}
 
 		if (order == "get_sync_dir")
 		{
-			printf("Sync dir: %s ready!\n\n", user_directory);
+			cout << "Sync dir: " << user_directory << " ready!" << endl
+				 << endl;
 			continue;
 		}
 
 		if (order == "exit")
 		{
+
 			orders.push(PROCEDURE_EXIT);
 			continue;
 		}

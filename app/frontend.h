@@ -1,8 +1,4 @@
-#define BUFFER_SIZE 256
-#define BYTE_SIZE 8
 #define MAX_WAITING_CLIENT_CONNECTIONS 1
-#define SOCKET_DEFAULT_PROTOCOL 0
-#define bool int
 
 // FOR NOW - TODO READ THIS FROM DOCUMENT
 #define SERVER_IP "localhost"
@@ -68,14 +64,14 @@ void connect_to_server(FE_SERVER_ADDRESS srv_address)
 
     if (server == NULL)
     {
-        fprintf(stderr, "ERROR, no such host\n");
+        cout << "ERROR, no such host" << endl;
         exit(0);
     }
 
     sock_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
     if (sock_fd == -1)
     {
-        printf("ERROR opening socket\n");
+        cout << "ERROR opening socket" << endl;
         exit(0);
     }
 
@@ -88,7 +84,7 @@ void connect_to_server(FE_SERVER_ADDRESS srv_address)
     int conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
     if (conn_return < 0)
     {
-        printf("ERROR connecting\n");
+        cout << "ERROR connecting" << endl;
         exit(0);
     }
 
@@ -113,7 +109,7 @@ void handle_cli_connection(int sock_fd)
 
     while (cli_conn_sock_fd == -1)
     {
-        printf("ERROR on accept\n");
+        cout << "ERROR on accept" << endl;
     }
     // successfully accepted connection
 
@@ -138,7 +134,8 @@ int init_frontend(int port)
 
     if (sock_fd == -1)
     {
-        printf("ERROR opening socket\n\n");
+        cout << "ERROR opening socket" << endl
+             << endl;
         exit(0);
     }
 
@@ -152,19 +149,21 @@ int init_frontend(int port)
 
     if (bind_return < 0)
     {
-        printf("ERROR on binding\n\n");
+        cout << "ERROR on binding" << endl
+             << endl;
         exit(0);
     }
 
     listen(sock_fd, MAX_WAITING_CLIENT_CONNECTIONS);
 
-    printf("Frontend Server listening on port %d\n\n", port);
+    cout << "Frontend Server listening on port " << port << endl
+         << endl;
 
     global_fe_sock_fd = sock_fd;
     return sock_fd;
 }
 
-void frontend_connection_procedure(int port, int sock_fd)
+int frontend_connection_procedure(int port, int sock_fd)
 {
     sock_fd = init_frontend(port);
 
@@ -176,13 +175,13 @@ void frontend_connection_procedure(int port, int sock_fd)
 
     pthread_t cli_thread, srv_thread;
 
-    printf("Start cli-fe connection\n");
+    cout << "Start cli-fe connection" << endl;
     pthread_create(&cli_thread, NULL, handle_client_to_server_messages, (void *)NULL);
 
-    printf("Start fe-srv connection\n");
+    cout << "Start fe-srv connection" << endl;
     pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
 
-    // TODO - create loop to switch between client and server communication
+    return sock_fd;
 }
 
 void *frontend_main(void *data)
@@ -194,7 +193,7 @@ void *frontend_main(void *data)
     int port = run_data->fe_port;
     global_fe_server_address = run_data->srv_address;
 
-    frontend_connection_procedure(port, sock_fd);
+    sock_fd = frontend_connection_procedure(port, sock_fd);
 
     close(sock_fd);
     return 0;

@@ -15,7 +15,6 @@
 #include <regex>
 #include <signal.h>
 #include <sstream>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -55,6 +54,12 @@ T *receive_converted_data_with_packets(int sock_fd);
 #define FE_PORT 50000
 #define SERVER_PORT 40001
 
+#define BUFFER_SIZE 256
+#define MAX_WAITING_CONNECTIONS 10
+#define BYTE_SIZE 8
+#define SOCKET_DEFAULT_PROTOCOL 0
+#define bool int
+
 bool started_connection_loop = FALSE;
 
 #include "header/shared/exceptions.h"
@@ -73,6 +78,7 @@ bool started_connection_loop = FALSE;
 #include "header/server/sync_file_srv.h"
 
 #include "header/server/server_utils.h"
+#include "header/shared/sockets_connection.h"
 
 #include "header/server/secondary_replica_manager.h"
 #include "header/server/primary_replica_manager.h"

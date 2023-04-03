@@ -34,7 +34,7 @@ void send_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory)
     }
     else
     {
-        printf("Unable to open file\n");
+        cout << "Unable to open file" << endl;
         sleep(1);
         throw "Unable to open file\n";
     }
@@ -73,7 +73,7 @@ void receive_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory
     }
     else
     {
-        printf("Unable to open file\n");
+        cout << "Unable to open file" << endl;
         sleep(1);
         throw "Unable to open file\n";
     }
@@ -91,7 +91,7 @@ void receive_single_file(int sock_fd, char *directory)
 
     if (file_exists->exists == D_FILE_NOT_EXISTS)
     {
-        printf("File doesn't exist\n");
+        cout << "File doesn't exist" << endl;
         return;
     }
 
@@ -117,7 +117,7 @@ void send_single_file(int sock_fd, const char *file_name, const char *file_path,
 
     if (file_exists->exists == D_FILE_NOT_EXISTS)
     {
-        printf("File doesn't exist\n");
+        cout << "File doesn't exist" << endl;
         return;
     }
 

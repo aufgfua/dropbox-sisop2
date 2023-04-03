@@ -1,33 +1,12 @@
 #include "shared.h"
 
-#define BUFFER_SIZE 256
-#define MAX_WAITING_CONNECTIONS 10
-#define BYTE_SIZE 8
-#define SOCKET_DEFAULT_PROTOCOL 0
-#define bool int
 #define LEAVE_KEY 'q'
-
-typedef struct STR_CONNECTION_DATA
-{
-	unsigned long cli_s_addr;
-	int sock_fd, connection_id;
-	char username[MAX_USERNAME_SIZE];
-} CONNECTION_DATA;
-
-typedef struct STR_RM_CONNECTION
-{
-	unsigned long s_addr;
-	int sock_fd;
-	in_port_t port;
-} RM_CONNECTION;
 
 int connection_id = 0;
 int global_sock_fd;
 
 map<int, long> last_sync;
-
 mutex connections_list_mtx;
-vector<CONNECTION_DATA> connections;
 
 void sync_files_procedure_srv(int sock_fd, char *user_directory)
 {
@@ -45,21 +24,24 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	switch (procedure->proc_id)
 	{
 	case PROCEDURE_NOP:
-		// printf("NOP\n");
+
 		break;
 	case PROCEDURE_SYNC_FILES:
-		printf("%d - Syncing files...\n\n", sock_fd);
+		cout << sock_fd << " - Syncing files..." << endl
+			 << endl;
 		sync_files_procedure_srv(sock_fd, user_directory);
 		last_sync[sock_fd] = get_now();
 		break;
 	case PROCEDURE_LIST_SERVER:
-		printf("%d - Listing server files...\n\n", sock_fd);
+		cout << sock_fd << " - Listing server files..." << endl
+			 << endl;
 		send_files_list(sock_fd, user_directory);
 		break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
 		get_sync_dir_control(user_directory);
 
-		printf("%d - Receiving file...\n\n", sock_fd);
+		cout << sock_fd << " - Receiving file..." << endl
+			 << endl;
 		receive_single_file(sock_fd, user_directory);
 
 		release_sync_dir_control(user_directory);
@@ -68,7 +50,8 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	{
 		get_sync_dir_control(user_directory);
 
-		printf("%d - Sending file...\n\n", sock_fd);
+		cout << sock_fd << " - Sending file..." << endl
+			 << endl;
 
 		DATA_RETURN data = receive_data_with_packets(sock_fd);
 
@@ -84,7 +67,10 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 	break;
 
 	case PROCEDURE_EXIT:
-		printf("%d - Exiting...\n\n", sock_fd);
+		cout << sock_fd << " - Exiting..." << endl
+			 << endl;
+		send_OK_packet(sock_fd);
+		close(sock_fd);
 		return TRUE;
 		break;
 	}
@@ -95,7 +81,7 @@ int select_procedure(int sock_fd)
 {
 	if (get_now() - last_sync[sock_fd] > SYNC_WAIT)
 	{
-		printf("%d - Need to sync...\n", sock_fd);
+		cout << sock_fd << " - Need to sync..." << endl;
 		return PROCEDURE_SYNC_FILES;
 	}
 	return PROCEDURE_NOP;
@@ -105,7 +91,7 @@ void srv_turn(int sock_fd, char *user_directory)
 {
 	int proc_id = select_procedure(sock_fd);
 	PROCEDURE_SELECT *procedure = send_procedure(sock_fd, proc_id);
-	// printf("Selected procedure: %d - ", proc_id);
+
 	srv_handle_procedure(sock_fd, procedure, user_directory);
 }
 
@@ -115,15 +101,15 @@ void srv_connection_loop(int sock_fd, char *username)
 
 	char *user_directory = mount_base_path(username, SERVER_BASE_DIR);
 	create_folder_if_not_exists(user_directory);
-	printf("User directory: %s\n\n", user_directory);
+	cout << "User directory: " << user_directory << endl
+		 << endl;
 
 	uint32_t run = 0;
 	started_connection_loop = TRUE;
-	try
+	while (TRUE)
 	{
-		while (TRUE)
+		try
 		{
-			// printf("\nRun %d - Turn %d\n", run, turn);
 
 			run++;
 			switch (turn)
@@ -131,11 +117,12 @@ void srv_connection_loop(int sock_fd, char *username)
 			case CLI_TURN:
 			{
 				PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
-				// printf("Received procedure: %d - ", procedure->proc_id);
+
 				bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
 				if (EXIT_NOW)
 				{
-					printf("Connection %d closed\n\n", sock_fd);
+					cout << "Connection " << sock_fd << " closed" << endl
+						 << endl;
 					return;
 				}
 			}
@@ -150,23 +137,24 @@ void srv_connection_loop(int sock_fd, char *username)
 			sleep(1);
 			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 		}
-	}
-	catch (OutOfSyncException e)
-	{
-		printf("Out of sync exception: %s\n", e.what());
+		catch (OutOfSyncException e)
+		{
+			cout << "Out of sync exception: " << e.what() << endl;
+		}
 	}
 }
 
 char *get_username(int sock_fd)
 {
 	LOGIN *login;
-	printf("Waiting for username...\n");
+	cout << "Waiting for username..." << endl;
 	char *buffer = (char *)receive_converted_data_with_packets<LOGIN>(sock_fd);
-	printf("Username received\n");
+	cout << "Username received" << endl;
 
 	if (buffer == NULL)
 	{
-		printf("Connection %d closed\n\n", sock_fd);
+		cout << "Connection " << sock_fd << " closed" << endl
+			 << endl;
 		close(sock_fd);
 		return NULL;
 	}
@@ -193,16 +181,17 @@ void *start_connection(void *data)
 		connections.push_back(*conn_data);
 		connections_list_mtx.unlock();
 
-		printf("Con #%d - logged in as %s\n", connection_id, username);
+		cout << "Con #" << connection_id << " - logged in as " << username << endl;
 
 		srv_connection_loop(sock_fd, username);
 
-		printf("Connection %d closed\n\n", conn_data->sock_fd);
+		cout << "Connection " << conn_data->sock_fd << " closed" << endl
+			 << endl;
 		close(conn_data->sock_fd);
 	}
 	catch (exception e)
 	{
-		printf("Exception starting connection data: %s\n", e.what());
+		cout << "Exception starting connection data: " << e.what() << endl;
 	}
 	return NULL;
 }
@@ -221,7 +210,7 @@ void manage_connections(int sock_fd)
 
 		if (new_conn_sock_fd == -1)
 		{
-			printf("ERROR on accept\n");
+			cout << "ERROR on accept" << endl;
 		}
 		else
 		{
@@ -237,7 +226,8 @@ void manage_connections(int sock_fd)
 			new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
 			connection_id++;
 
-			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
+			cout << "Connection " << new_conn_data->connection_id << " accepted" << endl
+				 << endl;
 
 			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
 		}
@@ -255,7 +245,8 @@ int init_server(int port)
 
 	if (sock_fd == -1)
 	{
-		printf("ERROR opening socket\n\n");
+		cout << "ERROR opening socket" << endl
+			 << endl;
 		exit(0);
 	}
 
@@ -269,30 +260,33 @@ int init_server(int port)
 
 	if (bind_return < 0)
 	{
-		printf("ERROR on binding\n\n");
+		cout << "ERROR on binding" << endl
+			 << endl;
 		exit(0);
 	}
 
 	listen(sock_fd, MAX_WAITING_CONNECTIONS);
 
-	printf("Server listening on port %d\n\n", port);
+	cout << "Server listening on port " << port << endl
+		 << endl;
 
-	global_sock_fd = sock_fd;
 	return sock_fd;
 }
 
-void primary_replica_manager_start(int argc, char *argv[])
+void primary_replica_manager_start(int port)
 {
 	int sock_fd;
 
-	int port = argc > 1 ? atoi(argv[1]) : SERVER_PORT;
 	new_rm_connections_port = port + 1000;
 
 	sock_fd = init_server(port);
+	global_sock_fd = sock_fd;
+
+	cout << "RM Server -> ";
 	new_rm_connections_sock_fd = init_server(new_rm_connections_port);
 
 	pthread_t new_rm_connections_thread;
-	pthread_create(&new_rm_connections_thread, NULL, manage_new_rm_connections, NULL);
+	pthread_create(&new_rm_connections_thread, NULL, manage_new_rm_connections, (void *)&new_rm_connections_sock_fd);
 
 	manage_connections(sock_fd);
 
@@ -305,17 +299,23 @@ int main(int argc, char *argv[])
 
 	if (argc != 2 && argc != 4)
 	{
-		printf("Usage:\n	> %s <port> // to run as primary RM\n	%s <port> <primary_server_ip> <primary_server_port> // to run as secondary RM\n", argv[0], argv[0]);
+		cout << "Usage:\n	> " << argv[0] << " <port> // to run as primary RM" << endl
+			 << "	" << argv[0] << " <port> <primary_server_ip> <primary_server_port> // to run as secondary RM" << endl;
 	}
 
 	if (argc == 2)
 	{
-		primary_replica_manager_start(argc, argv);
-		return;
+		int port = argc > 1 ? atoi(argv[1]) : SERVER_PORT;
+		primary_replica_manager_start(port);
+		return 0;
 	}
 	else if (argc == 4)
 	{
-		secondary_replica_manager_start(argc, argv);
-		return;
+		int port = atoi(argv[1]);
+		struct hostent *main_server = gethostbyname(argv[2]);
+		int main_server_port = atoi(argv[3]);
+
+		secondary_replica_manager_start(port, main_server, main_server_port);
+		return 0;
 	}
 }

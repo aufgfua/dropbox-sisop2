@@ -37,7 +37,7 @@ void get_sync_dir_control(char *user_dir)
         }
         else
         {
-            // printf("Creating lock file...\n");
+
             create_lock_file(user_dir);
             is_locked = false;
         }
@@ -47,7 +47,7 @@ void get_sync_dir_control(char *user_dir)
 
 void release_sync_dir_control(char *user_dir)
 {
-    // printf("Releasing lock file...\n");
+
     char control_file_path[MAX_PATH_SIZE];
     strcpy(control_file_path, user_dir);
     strcat(control_file_path, CONTROL_FILE);

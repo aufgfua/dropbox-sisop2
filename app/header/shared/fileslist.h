@@ -1,16 +1,4 @@
-#include <ctime>
-#include <iostream>
-#include <dirent.h>
-#include <unistd.h>
-#include <time.h>
-#include <sys/stat.h>
-#include <vector>
-#include <errno.h>
-#include <pwd.h>
-#include <fstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
 
 using namespace std;
 
@@ -25,7 +13,7 @@ typedef struct STR_FILE
 
 void print_usr_file(USR_FILE file)
 {
-    printf("Filename: %s, Size: %lu, Last modified: %u, Last accessed: %u, Last changed: %u\n", file.filename, file.size, file.last_modified, file.last_accessed, file.last_changed);
+    cout << "Filename: " << file.filename << ", Size: " << file.size << ", Last modified: " << file.last_modified << ", Last accessed: " << file.last_accessed << ", Last changed: " << file.last_changed << endl;
 }
 
 void print_usr_files(vector<USR_FILE> files)

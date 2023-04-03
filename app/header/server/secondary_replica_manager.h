@@ -1,20 +1,15 @@
 
 
-void secondary_replica_manager_start(int argc, char *argv[])
+void secondary_replica_manager_start(int port, struct hostent *main_server, int main_server_port)
 {
 
     int sock_fd;
 
-    int port = atoi(argv[1]);
-    struct hostent *main_server = gethostbyname(argv[2]);
-    int main_server_port = atoi(argv[3]);
-
-    sock_fd = init_server(port);
-
     // TODO connect to main server
 
-    manage_connections(sock_fd);
+    sock_fd = connect_socket(main_server, main_server_port);
 
+    sleep(10);
     close(sock_fd);
     return;
 }

@@ -1,10 +1,3 @@
-#include <ctime>
-#include <iostream>
-#include <dirent.h>
-#include <unistd.h>
-#include <vector>
-#include <stdio.h>
-#include <stdlib.h>
 
 using namespace std;
 
@@ -27,12 +20,13 @@ typedef struct STR_UP_DOWN_COMMAND
 
 void print_up_down_command(UP_DOWN_COMMAND up_down_command)
 {
-    printf("Filename: %s, Size: %lu, Type: %d\n", up_down_command.filename, up_down_command.size, up_down_command.sync_type);
+
+    cout << "Filename: " << up_down_command.filename << ", Size: " << up_down_command.size << ", Type: " << up_down_command.sync_type << endl;
 }
 
 void print_up_down_commands(vector<UP_DOWN_COMMAND> up_down_commands)
 {
-    printf("%ld Sync files:\n", up_down_commands.size());
+    cout << up_down_commands.size() << "d Sync files:" << endl;
     for (int i = 0; i < up_down_commands.size(); i++)
     {
         UP_DOWN_COMMAND up_down_command = up_down_commands[i];

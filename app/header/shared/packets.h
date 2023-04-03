@@ -28,7 +28,7 @@ void handle_restart_packet(int sock_fd);
 
 void print_packet(packet pck)
 {
-    printf("Type: %u, Seqn: %u, Total size: %lu, Length: %u, Value: %s\n", pck.type, pck.seqn, pck.total_size, pck.length, pck._payload);
+    cout << "Type: " << pck.type << ", Seqn: " << pck.seqn << ", Total size: " << pck.total_size << ", Length: " << pck.length << ", Value: " << pck._payload << endl;
 }
 
 int get_number_of_packets(int data_size)
@@ -43,25 +43,27 @@ int get_number_of_packets(int data_size)
 
 char *read_all_bytes(int sockfd, int bytes_to_read)
 {
-    LOG_MODE ? printf("Reading %d bytes from socket\n", bytes_to_read) : 0;
+    if (LOG_MODE)
+        cout << "Reading " << bytes_to_read << " bytes from socket" << endl;
 
     int total_bytes_read = 0;
     char *buffer = (char *)malloc(bytes_to_read);
     if (buffer == NULL)
     {
         // Handle memory allocation error
-        printf("Error allocating memory\n");
+        cout << "Error allocating memory" << endl;
         return NULL;
     }
     while (bytes_to_read > 0)
     {
         int bytes_received = recv(sockfd, buffer + total_bytes_read, bytes_to_read, 0);
 
-        LOG_MODE ? printf("Bytes received - %d\n", bytes_received) : 0;
+        if (LOG_MODE)
+            cout << "Bytes received - " << bytes_received << endl;
 
         if (bytes_received <= 0)
         {
-            printf("Error reading from socket\n");
+            cout << "Error reading from socket" << endl;
             sleep(1);
             throw "Error reading from socket\n";
             break;
@@ -71,7 +73,7 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
     }
     if (bytes_to_read != 0)
     {
-        printf("Invalid length reading from socket\n");
+        cout << "Invalid length reading from socket" << endl;
         sleep(1);
         throw "Invalid length reading from socket\n";
         return NULL;
@@ -81,16 +83,18 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
 
 int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
 {
-    LOG_MODE ? printf("Writing %d bytes to socket\n", bytes_to_write) : 0;
+    if (LOG_MODE)
+        cout << "Writing " << bytes_to_write << " bytes to socket " << endl;
     int total_bytes_written = 0;
     while (bytes_to_write > 0)
     {
         int bytes_sent = send(sockfd, buffer + total_bytes_written, bytes_to_write, 0);
-        LOG_MODE ? printf("Bytes sent - %d\n", bytes_sent) : 0;
+        if (LOG_MODE)
+            cout << "Bytes sent - " << bytes_sent << endl;
         if (bytes_sent <= 0)
         {
             // Handle error or connection closed
-            printf("Error writing to socket\n");
+            cout << "Error writing to socket" << endl;
             return bytes_sent;
         }
 
@@ -110,7 +114,7 @@ void send_restart_packet(int sock_fd)
         .restart_loop = TRUE,
     };
 
-    printf("SENDING RESTART PACKET TO %d\n", sock_fd);
+    cout << "SENDING RESTART PACKET TO " << sock_fd << endl;
 
     write_all_bytes(sock_fd, (char *)&restart_packet, sizeof(packet));
 }
@@ -186,7 +190,7 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
     char *buffer = read_all_bytes(sock_fd, sizeof(packet));
     if (buffer == NULL)
     {
-        printf("Error reading number of packets\n");
+        cout << "Error reading number of packets" << endl;
         sleep(1);
         throw "Error reading number of packets";
     }
@@ -199,8 +203,6 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
 
     NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)number_of_packets_packet->_payload;
 
-    // printf("Number of packets: %d\n", number_of_packets->pck_number);
-
     vector<packet> *packets_vector = new vector<packet>();
 
     for (int i = 0; i < number_of_packets->pck_number; i++)
@@ -208,7 +210,7 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
         buffer = read_all_bytes(sock_fd, sizeof(packet));
         if (buffer == NULL)
         {
-            printf("Error reading packet\n");
+            cout << "Error reading packet" << endl;
             sleep(1);
             throw "Error reading packet";
         }
@@ -220,11 +222,7 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
         }
 
         packets_vector->push_back(*pck);
-
-        // printf("Packet %d received\n", pck->seqn);
     }
-
-    // printf("All packets received - %d\n", number_of_packets->pck_number);
 
     packet *packets = (packet *)packets_vector;
 
@@ -269,8 +267,6 @@ void send_OK_packet(int sock_fd)
 
     strcpy(ok_packet._payload, "OK");
 
-    // printf("SENDING OK PACKET TO %d\n", sock_fd);
-
     write_all_bytes(sock_fd, (char *)&ok_packet, sizeof(packet));
 }
 
@@ -279,7 +275,7 @@ void wait_for_OK_packet(int sock_fd)
     bool is_ok_packet = FALSE;
     while (!is_ok_packet)
     {
-        // printf("Waiting for OK packet from %d\n", sock_fd);
+
         DATA_RETURN data_return = receive_data_with_packets(sock_fd);
         char *data = data_return.data;
         strcmp(data, "OK") == 0 ? is_ok_packet = TRUE : is_ok_packet = FALSE;
@@ -289,7 +285,7 @@ void wait_for_OK_packet(int sock_fd)
 
 void handle_restart_packet(int sock_fd)
 {
-    // printf("RECEIVED RESTART PACKET\n");
+
     send_OK_packet(sock_fd);
     wait_for_OK_packet(sock_fd);
     throw OutOfSyncException();
