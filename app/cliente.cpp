@@ -189,11 +189,15 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	strcpy(fe_srv_address.ip_addr, srv_ip);
 	fe_srv_address.port = srv_port;
 
-	FE_RUN_DATA fe_run_data;
-	fe_run_data.fe_port = fe_port;
-	fe_run_data.srv_address = fe_srv_address;
+	FE_RUN_DATA *fe_run_data = (FE_RUN_DATA *)malloc(sizeof(FE_RUN_DATA));
+	fe_run_data->fe_port = fe_port;
+	fe_run_data->srv_address = fe_srv_address;
 
-	pthread_create(&fe_thread, NULL, frontend_main, (void *)&fe_run_data);
+	cout << "Port - " << fe_port << endl;
+	cout << "Port - " << fe_port << endl;
+	cout << "Port - " << fe_port << endl;
+	cout << "Port - " << fe_port << endl;
+	pthread_create(&fe_thread, NULL, frontend_main, (void *)fe_run_data);
 	pthread_detach(fe_thread);
 }
 
@@ -216,10 +220,6 @@ int main(int argc, char *argv[])
 	strcpy(server_ip_string, argv[2]);
 	server = gethostbyname(argv[2]);
 	srv_port = atoi(argv[3]);
-	cout << argv[3] << endl;
-	cout << argv[3] << endl;
-	cout << argv[3] << endl;
-	cout << argv[3] << endl;
 	fe_port = argc > 4 ? atoi(argv[4]) : srv_port + FRONTEND_SOCKET_OFFSET;
 
 	run_frontend(fe_port, server_ip_string, srv_port);
