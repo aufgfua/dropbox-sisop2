@@ -135,18 +135,6 @@ void srv_connection_loop(int sock_fd, char *username)
 		 << endl;
 
 	started_connection_loop = TRUE;
-
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	getchar();
 	while (TRUE)
 	{
 		while (!can_sync_clients)

@@ -128,7 +128,6 @@ void *cli_connection_loop(void *data)
 
 	cout << "Client -> FE connection socket " << sock_fd << endl
 		 << endl;
-	getchar();
 
 	while (TRUE)
 	{
