@@ -131,7 +131,6 @@ void *cli_connection_loop(void *data)
 
 	while (TRUE)
 	{
-		cout << "Run " << run << endl;
 		try
 		{
 

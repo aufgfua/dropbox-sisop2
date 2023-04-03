@@ -107,7 +107,7 @@ void handle_data_send_loop(int sock_fd)
             break;
             case RM_PROC_CONTROL_DATA:
             {
-                cout << "Receiving control data:" << endl;
+                // cout << "Receiving control data:" << endl;
                 rm_receive_control_data(sock_fd);
             }
             break;
