@@ -193,10 +193,6 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	fe_run_data->fe_port = fe_port;
 	fe_run_data->srv_address = fe_srv_address;
 
-	cout << "Port - " << fe_port << endl;
-	cout << "Port - " << fe_port << endl;
-	cout << "Port - " << fe_port << endl;
-	cout << "Port - " << fe_port << endl;
 	pthread_create(&fe_thread, NULL, frontend_main, (void *)fe_run_data);
 	pthread_detach(fe_thread);
 }
