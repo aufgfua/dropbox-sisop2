@@ -104,14 +104,17 @@ void srv_connection_loop(int sock_fd, char *username)
 	cout << "User directory: " << user_directory << endl
 		 << endl;
 
-	uint32_t run = 0;
 	started_connection_loop = TRUE;
 	while (TRUE)
 	{
+		while (!can_sync_clients)
+		{
+			sleep(0.5);
+		}
+		increment_syncing_clients();
 		try
 		{
 
-			run++;
 			switch (turn)
 			{
 			case CLI_TURN:
@@ -141,6 +144,7 @@ void srv_connection_loop(int sock_fd, char *username)
 		{
 			cout << "Out of sync exception: " << e.what() << endl;
 		}
+		decrement_syncing_clients();
 	}
 }
 

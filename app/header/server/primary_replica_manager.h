@@ -1,6 +1,70 @@
 int new_rm_connections_sock_fd;
 int new_rm_connections_port;
 
+vector<USR_FILE> get_all_files_rm_up_down_command()
+{
+
+    vector<USR_FILE> all_local_files;
+
+    vector<USR_FOLDER> folders;
+    char *srv_base_folder = mount_srv_folders_path(SERVER_ALL_FOLDERS_DIR);
+
+    get_all_folders(srv_base_folder, folders);
+    for (USR_FOLDER folder : folders)
+    {
+        char folder_path[MAX_FILENAME_SIZE];
+        strcpy(folder_path, srv_base_folder);
+        strcat(folder_path, folder.foldername);
+        strcat(folder_path, "/");
+
+        vector<USR_FILE> local_files = *list_files(folder_path);
+
+        for (USR_FILE file : local_files)
+        {
+            all_local_files.push_back(file);
+        }
+    }
+
+    return all_local_files;
+}
+
+void primary_rm_replicate_state(int sock_fd)
+{
+    vector<USR_FILE> all_local_files = get_all_files_rm_up_down_command();
+
+    vector<USR_FILE> empty_remote_files;
+
+    vector<UP_DOWN_COMMAND> sync_files = define_sync_files(all_local_files, empty_remote_files);
+
+    // print_up_down_commands(sync_files);
+
+    // cout << "Sending " << sync_files.size() << " files to RM" << endl;
+    for (UP_DOWN_COMMAND file : sync_files)
+    {
+        send_transaction_controller(sock_fd, ONE_MORE_FILE);
+        send_up_down_command(sock_fd, &file);
+        send_file(sock_fd, &file, file.path);
+    }
+    send_transaction_controller(sock_fd, NO_MORE_FILES);
+}
+
+void primary_rm_replicate_state_controller(int sock_fd)
+{
+    cout << "Replicating state with RM - " << sock_fd << endl;
+
+    increment_want_to_sync_RM();
+
+    while (get_syncing_clients() > 0)
+    {
+        cout << "Waiting for clients to sync..." << endl;
+        sleep(1);
+    }
+
+    primary_rm_replicate_state(sock_fd);
+
+    decrement_want_to_sync_RM();
+}
+
 void *handle_new_rm_connection(void *data)
 {
     RM_CONNECTION *rm_data = (RM_CONNECTION *)data;
@@ -10,7 +74,8 @@ void *handle_new_rm_connection(void *data)
 
     cout << "New RM connection " << sock_fd << " handled" << endl
          << endl;
-    sleep(10);
+
+    primary_rm_replicate_state_controller(sock_fd);
 
     return NULL;
 }
@@ -28,6 +93,7 @@ void *manage_new_rm_connections(void *data)
 
     while (TRUE)
     {
+
         new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&new_rm_addr, &new_rm_len);
 
         if (new_conn_sock_fd == -1)

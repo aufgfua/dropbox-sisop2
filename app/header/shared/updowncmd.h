@@ -7,6 +7,7 @@ typedef struct STR_UP_DOWN_COMMAND
     char filename[MAX_FILENAME_SIZE];
     uint32_t last_modified;
     uint64_t size;
+    char path[MAX_FILENAME_SIZE];
 } UP_DOWN_COMMAND;
 
 #define SERVER_SYNC_UPLOAD 1
@@ -21,7 +22,7 @@ typedef struct STR_UP_DOWN_COMMAND
 void print_up_down_command(UP_DOWN_COMMAND up_down_command)
 {
 
-    cout << "Filename: " << up_down_command.filename << ", Size: " << up_down_command.size << ", Type: " << up_down_command.sync_type << endl;
+    cout << "Filename: " << up_down_command.filename << ", Size: " << up_down_command.size << ", Type: " << up_down_command.sync_type << ", Path: " << up_down_command.path << endl;
 }
 
 void print_up_down_commands(vector<UP_DOWN_COMMAND> up_down_commands)
@@ -34,10 +35,11 @@ void print_up_down_commands(vector<UP_DOWN_COMMAND> up_down_commands)
     }
 }
 
-UP_DOWN_COMMAND *create_up_down_command(char *filename, int sync_type, int size, uint32_t last_modified)
+UP_DOWN_COMMAND *create_up_down_command(char *filename, int sync_type, int size, uint32_t last_modified, char *path)
 {
     UP_DOWN_COMMAND *up_down_command = (UP_DOWN_COMMAND *)malloc(sizeof(UP_DOWN_COMMAND));
     strcpy(up_down_command->filename, filename);
+    strcpy(up_down_command->path, path);
     up_down_command->sync_type = sync_type;
     up_down_command->size = size;
     up_down_command->last_modified = last_modified;

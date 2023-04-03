@@ -255,6 +255,38 @@ T *receive_converted_data_with_packets(int sock_fd)
     return result;
 }
 
+template <typename TSV>
+void send_vector_of_data_with_packets(int sock_fd, vector<TSV> data_vector)
+{
+    size_t number_of_elements = data_vector.size();
+
+    TSV *data = data_vector.data();
+
+    send_data_with_packets(sock_fd, (char *)&number_of_elements, sizeof(size_t));
+
+    for (int i = 0; i < number_of_elements; i++)
+    {
+        TSV *element = &data[i];
+        send_data_with_packets(sock_fd, (char *)element, sizeof(TSV));
+    }
+}
+
+template <typename TRV>
+vector<TRV> receive_vector_of_data_with_packets(int sock_fd)
+{
+    int *number_of_elements = receive_converted_data_with_packets<int>(sock_fd);
+
+    vector<TRV> result;
+    for (int i = 0; i < *number_of_elements; i++)
+    {
+        TRV *element = receive_converted_data_with_packets<TRV>(sock_fd);
+
+        result.push_back(*element);
+    }
+
+    return result;
+}
+
 void send_OK_packet(int sock_fd)
 {
     packet ok_packet = {

@@ -1,5 +1,6 @@
 #define CLIENT_BASE_DIR "/PROJECT/client/.sync_dir_"
 #define SERVER_BASE_DIR "/PROJECT/server/.sync_dir_"
+#define SERVER_ALL_FOLDERS_DIR "/PROJECT/server"
 
 #define PROCEDURE_NOP 0
 #define PROCEDURE_SYNC_FILES 1

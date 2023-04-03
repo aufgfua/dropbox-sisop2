@@ -5,15 +5,22 @@ using namespace std;
 typedef struct STR_FILE
 {
     char filename[MAX_FILENAME_SIZE];
+    char path[MAX_FILENAME_SIZE];
     uint64_t size;
     uint32_t last_modified;
     uint32_t last_accessed;
     uint32_t last_changed;
 } USR_FILE;
 
+typedef struct STR_FOLDER
+{
+    char foldername[MAX_FILENAME_SIZE];
+    char path[MAX_PATH_SIZE];
+} USR_FOLDER;
+
 void print_usr_file(USR_FILE file)
 {
-    cout << "Filename: " << file.filename << ", Size: " << file.size << ", Last modified: " << file.last_modified << ", Last accessed: " << file.last_accessed << ", Last changed: " << file.last_changed << endl;
+    cout << "Filename: " << file.filename << ", Size: " << file.size << ", Last modified: " << file.last_modified << ", Last accessed: " << file.last_accessed << ", Last changed: " << file.last_changed << ", File Path: " << file.path << endl;
 }
 
 void print_usr_files(vector<USR_FILE> files)
@@ -45,6 +52,17 @@ char *get_home_path()
     return homedir;
 }
 
+char *mount_srv_folders_path(const char *base_dir)
+{
+
+    char *base_path = (char *)malloc(MAX_PATH_SIZE);
+    strcpy(base_path, get_home_path());
+    strcat(base_path, base_dir);
+    strcat(base_path, "/");
+
+    return base_path;
+}
+
 char *mount_base_path(char *username, const char *base_dir)
 {
     char *base_path = (char *)malloc(MAX_PATH_SIZE);
@@ -54,6 +72,34 @@ char *mount_base_path(char *username, const char *base_dir)
     strcat(base_path, "/");
 
     return base_path;
+}
+
+void get_all_folders(char *path, vector<USR_FOLDER> &folders)
+{
+    DIR *dir = opendir(path);
+    if (dir == NULL)
+    {
+        perror("opendir");
+        return;
+    }
+
+    struct dirent *ent;
+
+    while ((ent = readdir(dir)) != NULL)
+    {
+        if (ent->d_type == DT_DIR)
+        {
+            if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0)
+            {
+                USR_FOLDER folder;
+                strcpy(folder.foldername, ent->d_name);
+
+                folders.push_back(folder);
+            }
+        }
+    }
+
+    closedir(dir);
 }
 
 void create_folder_if_not_exists(char *path)
@@ -89,6 +135,8 @@ void create_folder_if_not_exists(char *path)
 USR_FILE *get_file_metadata(char *filename, char *directory)
 {
     USR_FILE *file = (USR_FILE *)malloc(sizeof(USR_FILE));
+
+    strcpy(file->path, directory);
 
     bool found = FALSE;
 
@@ -159,6 +207,8 @@ vector<USR_FILE> *list_files(const char *folder)
     while ((ent = readdir(dir)) != NULL)
     {
         USR_FILE file;
+
+        strcpy(file.path, folder);
         if (ent->d_type == DT_REG)
         {
             string curr_file_name = ent->d_name;

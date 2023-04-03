@@ -2,6 +2,7 @@
 typedef struct STR_DESIRED_FILE
 {
     char filename[MAX_FILENAME_SIZE];
+    char path[MAX_FILENAME_SIZE];
 } DESIRED_FILE;
 
 #define D_FILE_EXISTS 1
@@ -121,7 +122,7 @@ void send_single_file(int sock_fd, const char *file_name, const char *file_path,
         return;
     }
 
-    UP_DOWN_COMMAND *up_down_command = create_up_down_command(filename, SYNC_MODE, file->size, file->last_modified);
+    UP_DOWN_COMMAND *up_down_command = create_up_down_command(filename, SYNC_MODE, file->size, file->last_modified, directory);
 
     send_up_down_command(sock_fd, up_down_command);
 
