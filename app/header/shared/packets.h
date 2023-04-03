@@ -64,8 +64,6 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
         if (LOG_MODE)
             cout << "Bytes received - " << bytes_received << endl;
 
-        cout << "Bytes received - " << bytes_received << " from socket " << sockfd << endl;
-
         if (bytes_received == 0)
         {
             cout << "!!! - Connection closed on socket " << sockfd << " - !!!" << endl;
@@ -103,9 +101,6 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
     {
         int bytes_sent = send(sockfd, buffer + total_bytes_written, bytes_to_write, 0);
 
-        cout << "Bytes sent - " << bytes_sent << " on socket " << sockfd << endl
-             << endl
-             << endl;
         if (bytes_sent <= 0)
         {
             // Handle error or connection closed
