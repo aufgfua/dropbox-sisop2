@@ -1,4 +1,3 @@
-
 typedef struct STR_DESIRED_FILE
 {
     char filename[MAX_FILENAME_SIZE];
@@ -80,7 +79,7 @@ void receive_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory
     }
 }
 
-void receive_single_file(int sock_fd, char *directory)
+UP_DOWN_COMMAND *receive_single_file(int sock_fd, char *directory)
 {
 
     DATA_RETURN data = receive_data_with_packets(sock_fd);
@@ -93,15 +92,17 @@ void receive_single_file(int sock_fd, char *directory)
     if (file_exists->exists == D_FILE_NOT_EXISTS)
     {
         cout << "File doesn't exist" << endl;
-        return;
+        return NULL;
     }
 
     UP_DOWN_COMMAND *up_down_command = receive_up_down_command(sock_fd);
 
     receive_file(sock_fd, up_down_command, directory);
+
+    return up_down_command;
 }
 
-void send_single_file(int sock_fd, const char *file_name, const char *file_path, int SYNC_MODE)
+UP_DOWN_COMMAND *send_single_file(int sock_fd, const char *file_name, const char *file_path, int SYNC_MODE)
 {
     char filename[MAX_FILENAME_SIZE];
     strcpy(filename, file_name);
@@ -119,7 +120,7 @@ void send_single_file(int sock_fd, const char *file_name, const char *file_path,
     if (file_exists->exists == D_FILE_NOT_EXISTS)
     {
         cout << "File doesn't exist" << endl;
-        return;
+        return NULL;
     }
 
     UP_DOWN_COMMAND *up_down_command = create_up_down_command(filename, SYNC_MODE, file->size, file->last_modified, directory);
@@ -127,4 +128,6 @@ void send_single_file(int sock_fd, const char *file_name, const char *file_path,
     send_up_down_command(sock_fd, up_down_command);
 
     send_file(sock_fd, up_down_command, directory);
+
+    return up_down_command;
 }

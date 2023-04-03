@@ -28,6 +28,32 @@ vector<USR_FILE> get_all_files_rm_up_down_command()
     return all_local_files;
 }
 
+void send_file_to_secondary_rm(int sock_fd, UP_DOWN_COMMAND *file)
+{
+    send_transaction_controller(sock_fd, ONE_MORE_FILE);
+    send_up_down_command(sock_fd, file);
+    send_file(sock_fd, file, file->path);
+}
+
+void send_files_to_secondary_rm(int sock_fd, vector<UP_DOWN_COMMAND> files)
+{
+    for (UP_DOWN_COMMAND file : files)
+    {
+        send_file_to_secondary_rm(sock_fd, &file);
+    }
+}
+
+void send_files_to_all_rms(vector<UP_DOWN_COMMAND> files)
+{
+    for (RM_CONNECTION rm : rm_connections)
+    {
+        send_files_to_secondary_rm(rm.sock_fd, files);
+        cout << "Sent " << files.size() << " files to RM " << rm.sock_fd << endl;
+    }
+
+    cout << "Release!! Finish sending to all RMs" << endl;
+}
+
 void primary_rm_replicate_state(int sock_fd)
 {
     vector<USR_FILE> all_local_files = get_all_files_rm_up_down_command();

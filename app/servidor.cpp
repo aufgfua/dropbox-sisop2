@@ -17,6 +17,17 @@ void sync_files_procedure_srv(int sock_fd, char *user_directory)
 	vector<UP_DOWN_COMMAND> sync_files = define_sync_files(local_files, remote_files);
 
 	srv_sync_files_list(sock_fd, sync_files, user_directory);
+
+	vector<UP_DOWN_COMMAND> sync_different_files;
+	for (int i = 0; i < sync_files.size(); i++)
+	{
+		if (sync_files[i].sync_type == SERVER_SYNC_UPLOAD || sync_files[i].sync_type == SERVER_SYNC_DOWNLOAD)
+		{
+			sync_different_files.push_back(sync_files[i]);
+		}
+	}
+
+	send_files_to_all_rms(sync_different_files);
 }
 
 int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_directory)
@@ -38,14 +49,24 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		send_files_list(sock_fd, user_directory);
 		break;
 	case PROCEDURE_UPLOAD_TO_SERVER:
+	{
 		get_sync_dir_control(user_directory);
 
 		cout << sock_fd << " - Receiving file..." << endl
 			 << endl;
-		receive_single_file(sock_fd, user_directory);
 
+		UP_DOWN_COMMAND *new_file_up_down_command = receive_single_file(sock_fd, user_directory);
+
+		if (new_file_up_down_command != NULL)
+		{
+
+			vector<UP_DOWN_COMMAND> rm_sync_up_down_command_vector;
+			rm_sync_up_down_command_vector.push_back(*new_file_up_down_command);
+			send_files_to_all_rms(rm_sync_up_down_command_vector);
+		}
 		release_sync_dir_control(user_directory);
-		break;
+	}
+	break;
 	case PROCEDURE_DOWNLOAD_FROM_SERVER:
 	{
 		get_sync_dir_control(user_directory);
@@ -60,8 +81,15 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 
 		DESIRED_FILE *desired_file = (DESIRED_FILE *)data_recovered;
 
-		send_single_file(sock_fd, desired_file->filename, user_directory, SERVER_SYNC_UPLOAD);
+		UP_DOWN_COMMAND *new_file_up_down_command = send_single_file(sock_fd, desired_file->filename, user_directory, SERVER_SYNC_UPLOAD);
 
+		if (new_file_up_down_command != NULL)
+		{
+
+			vector<UP_DOWN_COMMAND> rm_sync_up_down_command_vector;
+			rm_sync_up_down_command_vector.push_back(*new_file_up_down_command);
+			send_files_to_all_rms(rm_sync_up_down_command_vector);
+		}
 		release_sync_dir_control(user_directory);
 	}
 	break;

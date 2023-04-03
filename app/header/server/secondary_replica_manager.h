@@ -1,14 +1,33 @@
+
+
+int my_random_id[3];
+
+void generate_random_id()
+{
+    srand(time(NULL));
+    my_random_id[0] = rand() % 10;
+    my_random_id[1] = rand() % 10;
+    my_random_id[2] = rand() % 10;
+}
+
+char digit_to_asc(int digit)
+{
+    int ASC_zero = 48;
+    return digit + ASC_zero;
+}
 char *get_LOCAL_FIX(int sock_fd)
 {
     char LOCAL_FIX[MAX_PATH_SIZE];
     strcpy(LOCAL_FIX, "/RM-");
 
-    int ASC_zero = 48;
-    int sock_fd_to_asc_int = sock_fd + ASC_zero;
-    char sock_fd_to_asc[2];
-    sock_fd_to_asc[0] = sock_fd_to_asc_int;
-    sock_fd_to_asc[1] = 0;
-    strcat(LOCAL_FIX, sock_fd_to_asc);
+    char my_path_id[5];
+    my_path_id[0] = digit_to_asc(sock_fd);
+    my_path_id[1] = digit_to_asc(my_random_id[0]);
+    my_path_id[2] = digit_to_asc(my_random_id[1]);
+    my_path_id[3] = digit_to_asc(my_random_id[2]);
+    my_path_id[4] = 0;
+
+    strcat(LOCAL_FIX, my_path_id);
 
     char *LOCAL_FIX_ptr = LOCAL_FIX;
     return LOCAL_FIX_ptr;
@@ -54,12 +73,20 @@ void files_download_loop(int sock_fd)
 
 void secondary_rm_replicate_state(int sock_fd)
 {
+    cout << "My folder: " << get_rm_folders_path(sock_fd) << endl;
     files_download_loop(sock_fd);
     cout << "Replication finished" << endl;
+
+    cout << "Start cloning changes" << endl;
+    while (TRUE)
+    {
+        files_download_loop(sock_fd);
+    }
 }
 
 void secondary_replica_manager_start(int port, struct hostent *main_server, int primary_rm_server_port)
 {
+    generate_random_id();
 
     int sock_fd, heartbeat_sock_fd;
 
@@ -82,6 +109,7 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
     return;
 }
 
+// Not used for now
 void create_replica_folders(vector<USR_FOLDER> folders, int sock_fd)
 {
 
