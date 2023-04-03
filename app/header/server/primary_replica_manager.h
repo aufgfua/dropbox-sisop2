@@ -128,11 +128,15 @@ void primary_rm_replicate_state_controller(int sock_fd)
 void *handle_new_rm_connection(void *data)
 {
     RM_CONNECTION *rm_data = (RM_CONNECTION *)data;
+    rm_data->id = get_rm_connection_greatest_id() + 1;
+
     int sock_fd = rm_data->sock_fd;
     int port = rm_data->port;
-    int s_addr = rm_data->s_addr;
+    unsigned long s_addr = rm_data->s_addr;
 
     insert_rm_connection(rm_data);
+    send_data_with_packets(sock_fd, (char *)&(rm_data->id), sizeof(int));
+    send_data_with_packets(sock_fd, (char *)&(rm_data->s_addr), sizeof(unsigned long));
     cout << "New RM connection " << sock_fd << " handled" << endl
          << endl;
 

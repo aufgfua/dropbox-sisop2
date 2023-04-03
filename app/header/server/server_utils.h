@@ -38,6 +38,8 @@ typedef struct STR_RM_CONNECTION
     unsigned long s_addr;
     int sock_fd;
     in_port_t port;
+    int id;
+    char str_ip[INET_ADDRSTRLEN];
 } RM_CONNECTION;
 void print_rm_connection(RM_CONNECTION rm_connection)
 {
@@ -100,6 +102,28 @@ void remove_rm_connection_s_addr(unsigned long s_addr)
     rm_connections_list_mtx.unlock();
 }
 
+RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
+{
+    RM_CONNECTION *greatest_id_rm_conn = NULL;
+    rm_connections_list_mtx.lock();
+
+    sort(rm_connections.begin(), rm_connections.end(), [](const RM_CONNECTION &a, const RM_CONNECTION &b)
+         { if(a.id != b.id) return a.id < b.id;
+        return a.s_addr < b.s_addr; });
+
+    for (RM_CONNECTION rm_conn : rm_connections)
+    {
+        if (rm_conn.id > id)
+        {
+            greatest_id_rm_conn = &rm_conn;
+            break;
+        }
+    }
+
+    rm_connections_list_mtx.unlock();
+    return greatest_id_rm_conn;
+}
+
 void insert_client_connection(CONNECTION_DATA *conn_data)
 {
     connections_list_mtx.lock();
@@ -119,6 +143,19 @@ void remove_client_connection(int sock_fd)
         }
     }
     connections_list_mtx.unlock();
+}
+
+int get_rm_connection_greatest_id()
+{
+    int greatest_id = 0;
+    rm_connections_list_mtx.lock();
+    for (RM_CONNECTION rm_conn : rm_connections)
+    {
+        if (rm_conn.id > greatest_id)
+            greatest_id = rm_conn.id;
+    }
+    rm_connections_list_mtx.unlock();
+    return greatest_id;
 }
 
 void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)

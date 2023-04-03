@@ -131,21 +131,21 @@ void secondary_rm_replicate_state(int sock_fd)
     cout << "My folder: " << get_rm_folders_path(sock_fd) << endl;
     files_download_loop(sock_fd);
     cout << "Replication finished" << endl;
-
-    cout << "Start cloning changes" << endl;
-    handle_data_send_loop(sock_fd);
-
-    close(sock_fd);
 }
 
 void secondary_replica_manager_start(int port, struct hostent *main_server, int primary_rm_server_port)
 {
-    generate_random_id();
+    generate_random_id(); // for folder-name
 
     int sock_fd, heartbeat_sock_fd;
 
     int primary_rm_handler_port = primary_rm_server_port + NEW_RM_CONNECTIONS_PORT_OFFSET;
     sock_fd = connect_socket(main_server, primary_rm_handler_port);
+
+    int my_id = *(receive_converted_data_with_packets<int>(sock_fd));
+    cout << "My ID: " << my_id << endl;
+    unsigned long my_s_addr = *(receive_converted_data_with_packets<unsigned long>(sock_fd));
+    cout << "My s_addr: " << my_s_addr << endl;
 
     int primary_heartbeat_server_port = primary_rm_server_port + HEARTBEAT_PORT_OFFSET;
     heartbeat_sock_fd = start_heartbeat_secondary_rm(main_server, primary_heartbeat_server_port);
@@ -157,13 +157,19 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
     pthread_t heartbeat_thread;
     pthread_create(&heartbeat_thread, NULL, secondary_heartbeat_loop, (void *)heartbeat_connection);
 
+    ELECTION_PARTICIPANT *election_participant = (ELECTION_PARTICIPANT *)malloc(sizeof(ELECTION_PARTICIPANT));
+
+    election_participant->main_mode_port = port;
+    election_participant->id = my_id;
+    pthread_t election_thread;
+    pthread_create(&election_thread, NULL, run_election_server, (void *)election_participant);
+
     cout << "RM Server -> ";
     secondary_rm_replicate_state(sock_fd);
 
-    while (TRUE)
-    {
-        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
-    }
+    cout << "Start cloning changes" << endl;
+    handle_data_send_loop(sock_fd);
+
     close(sock_fd);
     return;
 }
