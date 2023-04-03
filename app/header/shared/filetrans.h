@@ -35,7 +35,7 @@ void send_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory)
     else
     {
         cout << "Unable to open file" << endl;
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
         throw "Unable to open file\n";
     }
 }
@@ -74,7 +74,7 @@ void receive_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory
     else
     {
         cout << "Unable to open file" << endl;
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
         throw "Unable to open file\n";
     }
 }

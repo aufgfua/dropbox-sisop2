@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 	strcpy(server_ip_string, argv[2]);
 	server = gethostbyname(argv[2]);
 	srv_port = atoi(argv[3]);
-	fe_port = argc > 4 ? atoi(argv[4]) : FE_PORT;
+	fe_port = argc > 4 ? atoi(argv[4]) : srv_port + FRONTEND_SOCKET_OFFSET;
 
 	run_frontend(fe_port, server_ip_string, srv_port);
 

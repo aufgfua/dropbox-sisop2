@@ -25,7 +25,7 @@ void increment_syncing_clients()
 {
     while (get_want_to_sync_RM() > 0)
     {
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
     }
     syncing_clients_mtx.lock();
 

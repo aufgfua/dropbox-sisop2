@@ -95,15 +95,20 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
 
     int primary_heartbeat_server_port = primary_rm_server_port + HEARTBEAT_PORT_OFFSET;
     heartbeat_sock_fd = start_heartbeat_secondary_rm(main_server, primary_heartbeat_server_port);
+
+    HEARTBEAT_CONNECTION *heartbeat_connection = (HEARTBEAT_CONNECTION *)malloc(sizeof(HEARTBEAT_CONNECTION));
+    heartbeat_connection->rm_connection_sock_fd = sock_fd;
+    heartbeat_connection->heartbeat_sock_fd = heartbeat_sock_fd;
+
     pthread_t heartbeat_thread;
-    pthread_create(&heartbeat_thread, NULL, secondary_heartbeat_loop, (void *)&heartbeat_sock_fd);
+    pthread_create(&heartbeat_thread, NULL, secondary_heartbeat_loop, (void *)heartbeat_connection);
 
     cout << "RM Server -> ";
     secondary_rm_replicate_state(sock_fd);
 
     while (TRUE)
     {
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
     }
     close(sock_fd);
     return;

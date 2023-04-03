@@ -64,10 +64,18 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
         if (LOG_MODE)
             cout << "Bytes received - " << bytes_received << endl;
 
-        if (bytes_received <= 0)
+        if (bytes_received == 0)
+        {
+            cout << "!!! - Connection closed on socket " << sockfd << " - !!!" << endl;
+            this_thread::sleep_for(chrono::milliseconds(1 * 1000));
+            throw ConnectionLostException();
+            break;
+        }
+
+        if (bytes_received < 0)
         {
             cout << "Error reading from socket" << endl;
-            sleep(1);
+            this_thread::sleep_for(chrono::milliseconds(1 * 1000));
             throw "Error reading from socket\n";
             break;
         }
@@ -77,7 +85,7 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
     if (bytes_to_read != 0)
     {
         cout << "Invalid length reading from socket" << endl;
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
         throw "Invalid length reading from socket\n";
         return NULL;
     }
@@ -194,7 +202,7 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
     if (buffer == NULL)
     {
         cout << "Error reading number of packets" << endl;
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
         throw "Error reading number of packets";
     }
     packet *number_of_packets_packet = (packet *)buffer;
@@ -214,7 +222,7 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
         if (buffer == NULL)
         {
             cout << "Error reading packet" << endl;
-            sleep(1);
+            this_thread::sleep_for(chrono::milliseconds(1 * 1000));
             throw "Error reading packet";
         }
         packet *pck = (packet *)buffer;

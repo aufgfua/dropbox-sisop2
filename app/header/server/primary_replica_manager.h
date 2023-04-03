@@ -47,8 +47,17 @@ void send_files_to_all_rms(vector<UP_DOWN_COMMAND> files)
 {
     for (RM_CONNECTION rm : rm_connections)
     {
-        send_files_to_secondary_rm(rm.sock_fd, files);
-        cout << "Sent " << files.size() << " files to RM " << rm.sock_fd << endl;
+        try
+        {
+            send_files_to_secondary_rm(rm.sock_fd, files);
+            cout << "Sent " << files.size() << " files to RM " << rm.sock_fd << endl;
+        }
+        catch (ConnectionLostException e)
+        {
+            cout << "Connection Lost -> RM " << rm.sock_fd << " is down" << endl;
+            remove_rm_connection(rm.sock_fd);
+            close(rm.sock_fd);
+        }
     }
 
     cout << "Release!! Finish sending to all RMs" << endl;
@@ -83,7 +92,7 @@ void primary_rm_replicate_state_controller(int sock_fd)
     while (get_syncing_clients() > 0)
     {
         cout << "Waiting for clients to sync..." << endl;
-        sleep(1);
+        this_thread::sleep_for(chrono::milliseconds(1 * 1000));
     }
 
     primary_rm_replicate_state(sock_fd);
@@ -98,6 +107,7 @@ void *handle_new_rm_connection(void *data)
     int port = rm_data->port;
     int s_addr = rm_data->s_addr;
 
+    insert_rm_connection(rm_data);
     cout << "New RM connection " << sock_fd << " handled" << endl
          << endl;
 
@@ -138,7 +148,6 @@ void *manage_new_rm_connections(void *data)
 
             cout << "New RM connection " << new_rm_data->sock_fd << " accepted" << endl
                  << endl;
-            rm_connections.push_back(*new_rm_data);
 
             pthread_create(&new_rm_connection_thread, NULL, handle_new_rm_connection, (void *)new_rm_data);
         }

@@ -3,27 +3,37 @@
 #define HEARTBEAT_BUFFER_SIZE 128
 #define HEARTBEAT_MSG "HB"
 
+typedef struct STR_HEARTBEAT_CONNECTION
+{
+    int heartbeat_sock_fd;
+    int rm_connection_sock_fd;
+} HEARTBEAT_CONNECTION;
+
 void *primary_heartbeat_loop(void *data)
 {
-    int sock_fd = *((int *)data);
+
+    RM_CONNECTION *rm_data = (RM_CONNECTION *)data;
+
+    int heartbeat_sock_fd = rm_data->sock_fd;
+
     while (TRUE)
     {
-        sleep(HEARTBEAT_TIMEOUT);
+        this_thread::sleep_for(chrono::milliseconds(HEARTBEAT_TIMEOUT * 1000));
 
         // SEND
         char heartbeat_message[HEARTBEAT_BUFFER_SIZE];
         strcpy(heartbeat_message, HEARTBEAT_MSG);
-        if (send(sock_fd, heartbeat_message, HEARTBEAT_BUFFER_SIZE, 0) < 0)
+        if (send(heartbeat_sock_fd, heartbeat_message, HEARTBEAT_BUFFER_SIZE, 0) < 0)
         {
             std::cerr << "Error sending heartbeat message" << std::endl;
             continue;
         }
 
-        cout << "HB> " << sock_fd << " ---- Send: <3 - ";
+        cout << "HB> " << heartbeat_sock_fd << " ---- Send: <3 - ";
 
         // RECEIVE
         char response[HEARTBEAT_BUFFER_SIZE];
-        int n = recv(sock_fd, response, HEARTBEAT_BUFFER_SIZE, 0);
+        int n = recv(heartbeat_sock_fd, response, HEARTBEAT_BUFFER_SIZE, 0);
         if (n < 0)
         {
             std::cerr << "Error receiving heartbeat response" << std::endl;
@@ -31,8 +41,11 @@ void *primary_heartbeat_loop(void *data)
         }
         else if (n == 0)
         {
-            std::cerr << "Heartbeat connection closed!!!!" << std::endl;
-            // TODO PROCESS RM HEARTBEAT FAILURE
+            std::cerr << "Heartbeat connection closed!!!! HB-FD: " << heartbeat_sock_fd << std::endl;
+
+            close(heartbeat_sock_fd);
+            remove_rm_connection_s_addr(rm_data->s_addr);
+
             break;
         }
 
@@ -52,17 +65,23 @@ void *start_heartbeat_primary_rm(void *data)
     {
         struct sockaddr_in secondary_rm_addr;
         socklen_t client_len = sizeof(secondary_rm_addr);
-        int rm_sock_fd = accept(heartbeat_sock_fd, (struct sockaddr *)&secondary_rm_addr, &client_len);
-        if (rm_sock_fd < 0)
+        int new_hb_connection_sock_fd = accept(heartbeat_sock_fd, (struct sockaddr *)&secondary_rm_addr, &client_len);
+        if (new_hb_connection_sock_fd < 0)
         {
             std::cerr << "Error accepting secondary RM heartbeat connection" << std::endl;
             continue;
         }
 
-        cout << "Connected to Heartbeat on " << rm_sock_fd << "!" << endl;
+        RM_CONNECTION *new_heartbeat_conn = (RM_CONNECTION *)malloc(sizeof(RM_CONNECTION));
+
+        new_heartbeat_conn->sock_fd = new_hb_connection_sock_fd;
+        new_heartbeat_conn->s_addr = secondary_rm_addr.sin_addr.s_addr;
+        new_heartbeat_conn->port = secondary_rm_addr.sin_port;
+
+        cout << "Connected to Heartbeat on " << new_hb_connection_sock_fd << "!" << endl;
 
         pthread_t heartbeat_thread;
-        pthread_create(&heartbeat_thread, NULL, primary_heartbeat_loop, (void *)&rm_sock_fd);
+        pthread_create(&heartbeat_thread, NULL, primary_heartbeat_loop, (void *)new_heartbeat_conn);
     }
 
     return NULL;
@@ -70,10 +89,14 @@ void *start_heartbeat_primary_rm(void *data)
 
 void *secondary_heartbeat_loop(void *data)
 {
-    int sock_fd = *((int *)data);
+    HEARTBEAT_CONNECTION *hb_conn = (HEARTBEAT_CONNECTION *)data;
+    int sock_fd = hb_conn->heartbeat_sock_fd;
+
+    int rm_connection_sock_fd = hb_conn->rm_connection_sock_fd;
+
     while (TRUE)
     {
-        sleep(HEARTBEAT_TIMEOUT);
+        this_thread::sleep_for(chrono::milliseconds(HEARTBEAT_TIMEOUT * 1000));
 
         // RECEIVE
         char heartbeat_message[HEARTBEAT_BUFFER_SIZE];

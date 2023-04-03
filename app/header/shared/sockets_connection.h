@@ -65,7 +65,7 @@ int connect_socket(struct hostent *server, int port)
     while (conn_return < 0)
     {
         conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-        sleep(0.5);
+        this_thread::sleep_for(chrono::milliseconds(500));
     }
 
     if (conn_return < 0)

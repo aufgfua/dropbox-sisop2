@@ -16,7 +16,68 @@ typedef struct STR_RM_CONNECTION
 } RM_CONNECTION;
 
 vector<CONNECTION_DATA> connections;
+mutex connections_list_mtx;
+
 vector<RM_CONNECTION> rm_connections;
+mutex rm_connections_list_mtx;
+
+void insert_rm_connection(RM_CONNECTION *rm_conn)
+{
+    rm_connections_list_mtx.lock();
+    rm_connections.push_back(*rm_conn);
+    rm_connections_list_mtx.unlock();
+}
+
+void remove_rm_connection(int sock_fd)
+{
+    rm_connections_list_mtx.lock();
+    for (int i = 0; i < rm_connections.size(); i++)
+    {
+        if (rm_connections[i].sock_fd == sock_fd)
+        {
+            rm_connections.erase(rm_connections.begin() + i);
+            break;
+        }
+    }
+    rm_connections_list_mtx.unlock();
+}
+
+void remove_rm_connection_s_addr(unsigned long s_addr)
+{
+    rm_connections_list_mtx.lock();
+    for (int i = 0; i < rm_connections.size(); i++)
+    {
+        if (rm_connections[i].s_addr == s_addr)
+        {
+            close(rm_connections[i].sock_fd);
+            cout << "Closed connection with RM " << inet_ntoa(*(struct in_addr *)&rm_connections[i].s_addr) << " => RM-FD:" << rm_connections[i].sock_fd << endl;
+            rm_connections.erase(rm_connections.begin() + i);
+            break;
+        }
+    }
+    rm_connections_list_mtx.unlock();
+}
+
+void insert_client_connection(CONNECTION_DATA *conn_data)
+{
+    connections_list_mtx.lock();
+    connections.push_back(*conn_data);
+    connections_list_mtx.unlock();
+}
+
+void remove_client_connection(int sock_fd)
+{
+    connections_list_mtx.lock();
+    for (int i = 0; i < connections.size(); i++)
+    {
+        if (connections[i].sock_fd == sock_fd)
+        {
+            connections.erase(connections.begin() + i);
+            break;
+        }
+    }
+    connections_list_mtx.unlock();
+}
 
 void define_sync_local_files(vector<UP_DOWN_COMMAND> *sync_files, vector<USR_FILE> local_files, vector<USR_FILE> remote_files)
 {

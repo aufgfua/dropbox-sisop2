@@ -6,7 +6,6 @@ int connection_id = 0;
 int global_sock_fd;
 
 map<int, long> last_sync;
-mutex connections_list_mtx;
 
 void sync_files_procedure_srv(int sock_fd, char *user_directory)
 {
@@ -101,7 +100,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		cout << sock_fd << " - Exiting..." << endl
 			 << endl;
 		send_OK_packet(sock_fd, OK_PACKET_QUIET);
-		sleep(2);
+		this_thread::sleep_for(chrono::milliseconds(2 * 1000));
 		return TRUE;
 		break;
 	}
@@ -140,7 +139,7 @@ void srv_connection_loop(int sock_fd, char *username)
 	{
 		while (!can_sync_clients)
 		{
-			sleep(0.5);
+			this_thread::sleep_for(chrono::milliseconds(500));
 		}
 		increment_syncing_clients();
 		try
@@ -168,7 +167,7 @@ void srv_connection_loop(int sock_fd, char *username)
 			break;
 			}
 
-			sleep(1);
+			this_thread::sleep_for(chrono::milliseconds(1 * 1000));
 			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 		}
 		catch (OutOfSyncException e)
@@ -201,20 +200,18 @@ char *get_username(int sock_fd)
 
 void *start_connection(void *data)
 {
+	CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
+	int connection_id = conn_data->connection_id;
+	int sock_fd = conn_data->sock_fd;
+
 	try
 	{
-		CONNECTION_DATA *conn_data = (CONNECTION_DATA *)data;
-
-		int connection_id = conn_data->connection_id;
-		int sock_fd = conn_data->sock_fd;
-
 		char *username = get_username(sock_fd);
 		strcpy(conn_data->username, username);
 
 		// save to the global list of connections - TODO cap connections at 2 at most
-		connections_list_mtx.lock();
-		connections.push_back(*conn_data);
-		connections_list_mtx.unlock();
+
+		insert_client_connection(conn_data);
 
 		cout << "Con #" << connection_id << " - logged in as " << username << endl;
 
@@ -224,9 +221,15 @@ void *start_connection(void *data)
 			 << endl;
 		// close(conn_data->sock_fd);
 	}
+	catch (ConnectionLostException e)
+	{
+		cout << "Connection lost exception: " << e.what() << endl;
+		remove_client_connection(sock_fd);
+		close(sock_fd);
+	}
 	catch (exception e)
 	{
-		cout << "Exception starting connection data: " << e.what() << endl;
+		cout << "Exception managing socket: " << sock_fd << "  -  " << e.what() << endl;
 	}
 	return NULL;
 }
