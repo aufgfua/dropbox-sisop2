@@ -28,9 +28,34 @@ vector<USR_FILE> get_all_files_rm_up_down_command()
     return all_local_files;
 }
 
+void share_connection_data(int sock_fd)
+{
+    send_vector_of_data_with_packets(sock_fd, connections);
+    send_vector_of_data_with_packets(sock_fd, rm_connections);
+}
+
+void share_connection_data_with_all()
+{
+    for (RM_CONNECTION rm : rm_connections)
+    {
+        try
+        {
+            cout << "Sending connection data to RM " << rm.sock_fd << endl;
+            send_rm_procedure_select(rm.sock_fd, RM_PROC_CONTROL_DATA);
+            share_connection_data(rm.sock_fd);
+        }
+        catch (ConnectionLostException e)
+        {
+            cout << "Connection Lost -> RM " << rm.sock_fd << " is down" << endl;
+            remove_rm_connection(rm.sock_fd);
+            close(rm.sock_fd);
+        }
+    }
+}
+
 void send_file_to_secondary_rm(int sock_fd, UP_DOWN_COMMAND *file)
 {
-    send_transaction_controller(sock_fd, ONE_MORE_FILE);
+    send_rm_procedure_select(sock_fd, RM_PROC_FILE);
     send_up_down_command(sock_fd, file);
     send_file(sock_fd, file, file->path);
 }

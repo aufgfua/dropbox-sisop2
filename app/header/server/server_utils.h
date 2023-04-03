@@ -1,12 +1,37 @@
 
 #define NEW_RM_CONNECTIONS_PORT_OFFSET 1000
 
+#define RM_PROC_FILE 1
+#define RM_PROC_CONTROL_DATA 2
+
+typedef struct STR_RM_PROCEDURE_SELECT
+{
+    int procedure_id;
+} RM_PROCEDURE_SELECT;
+
 typedef struct STR_CONNECTION_DATA
 {
     unsigned long cli_s_addr;
     int sock_fd, connection_id;
     char username[MAX_USERNAME_SIZE];
 } CONNECTION_DATA;
+void print_connection_data(CONNECTION_DATA connection_data)
+{
+    cout << "Connection data: ";
+    cout << " Connection ID: " << connection_data.connection_id;
+    cout << ", Socket FD: " << connection_data.sock_fd;
+    cout << ", Username: " << connection_data.username;
+    cout << ", Client IP: " << inet_ntoa(*(struct in_addr *)&connection_data.cli_s_addr) << endl
+         << endl;
+}
+
+void print_connections_data(vector<CONNECTION_DATA> connections)
+{
+    for (CONNECTION_DATA conn : connections)
+    {
+        print_connection_data(conn);
+    }
+}
 
 typedef struct STR_RM_CONNECTION
 {
@@ -14,6 +39,23 @@ typedef struct STR_RM_CONNECTION
     int sock_fd;
     in_port_t port;
 } RM_CONNECTION;
+void print_rm_connection(RM_CONNECTION rm_connection)
+{
+    cout << "RM Connection data: ";
+    cout << " Socket FD: " << rm_connection.sock_fd;
+    cout << ", RM IP: " << inet_ntoa(*(struct in_addr *)&rm_connection.s_addr);
+    cout << ", RM Port: " << rm_connection.port << endl
+         << endl
+         << endl;
+}
+
+void print_rm_connections(vector<RM_CONNECTION> rm_connections)
+{
+    for (RM_CONNECTION rm_conn : rm_connections)
+    {
+        print_rm_connection(rm_conn);
+    }
+}
 
 vector<CONNECTION_DATA> connections;
 mutex connections_list_mtx;
@@ -189,4 +231,19 @@ char *get_last_folder_name(char *file_path_chars)
 
     strcpy(char_folder_name, file_path.substr(pos + 1).c_str());
     return char_folder_name;
+}
+
+void send_rm_procedure_select(int sock_fd, int procedure_id)
+{
+    RM_PROCEDURE_SELECT *rm_proc_select = (RM_PROCEDURE_SELECT *)malloc(sizeof(RM_PROCEDURE_SELECT));
+    rm_proc_select->procedure_id = procedure_id;
+
+    send_data_with_packets(sock_fd, (char *)rm_proc_select, sizeof(RM_PROCEDURE_SELECT));
+}
+
+RM_PROCEDURE_SELECT *receive_rm_procedure_select(int sock_fd)
+{
+    RM_PROCEDURE_SELECT *rm_proc_select = receive_converted_data_with_packets<RM_PROCEDURE_SELECT>(sock_fd);
+
+    return rm_proc_select;
 }

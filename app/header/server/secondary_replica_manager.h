@@ -43,6 +43,35 @@ char *get_rm_folders_path(int sock_fd)
     return folders_def_path;
 }
 
+void rm_receive_control_data(int sock_fd)
+{
+    vector<CONNECTION_DATA> received_usr_connections = receive_vector_of_data_with_packets<CONNECTION_DATA>(sock_fd);
+    connections = received_usr_connections;
+    vector<RM_CONNECTION> received_rm_connections = receive_vector_of_data_with_packets<RM_CONNECTION>(sock_fd);
+    rm_connections = received_rm_connections;
+}
+
+void rm_file_download(int sock_fd)
+{
+
+    UP_DOWN_COMMAND *up_down_command = receive_up_down_command(sock_fd);
+
+    char *base_path = mount_srv_folders_path(get_rm_folders_path(sock_fd));
+
+    char *folder_name = get_last_folder_name(up_down_command->path);
+
+    char *final_path = (char *)malloc(MAX_FILENAME_SIZE);
+    strcpy(final_path, base_path);
+    strcat(final_path, folder_name);
+
+    // cout << "Initial path: " << up_down_command->path << endl;
+    // cout << "Creating folder: " << final_path << " to receive File: " << up_down_command->filename << endl;
+
+    create_folder_if_not_exists(final_path);
+
+    receive_file(sock_fd, up_down_command, final_path);
+}
+
 void files_download_loop(int sock_fd)
 {
 
@@ -50,24 +79,32 @@ void files_download_loop(int sock_fd)
 
     while (file_transaction_controller->one_more)
     {
-        UP_DOWN_COMMAND *up_down_command = receive_up_down_command(sock_fd);
-
-        char *base_path = mount_srv_folders_path(get_rm_folders_path(sock_fd));
-
-        char *folder_name = get_last_folder_name(up_down_command->path);
-
-        char *final_path = (char *)malloc(MAX_FILENAME_SIZE);
-        strcpy(final_path, base_path);
-        strcat(final_path, folder_name);
-
-        // cout << "Initial path: " << up_down_command->path << endl;
-        // cout << "Creating folder: " << final_path << " to receive File: " << up_down_command->filename << endl;
-
-        create_folder_if_not_exists(final_path);
-
-        receive_file(sock_fd, up_down_command, final_path);
+        rm_file_download(sock_fd);
 
         file_transaction_controller = receive_transaction_controller(sock_fd);
+    }
+}
+
+void handle_data_send_loop(int sock_fd)
+{
+    while (TRUE)
+    {
+        RM_PROCEDURE_SELECT *rm_procedure_select = receive_rm_procedure_select(sock_fd);
+
+        switch (rm_procedure_select->procedure_id)
+        {
+        case RM_PROC_FILE:
+        {
+            rm_file_download(sock_fd);
+        }
+        break;
+        case RM_PROC_CONTROL_DATA:
+        {
+            cout << "Receiving control data:" << endl;
+            rm_receive_control_data(sock_fd);
+        }
+        break;
+        }
     }
 }
 
@@ -78,10 +115,7 @@ void secondary_rm_replicate_state(int sock_fd)
     cout << "Replication finished" << endl;
 
     cout << "Start cloning changes" << endl;
-    while (TRUE)
-    {
-        files_download_loop(sock_fd);
-    }
+    handle_data_send_loop(sock_fd);
 }
 
 void secondary_replica_manager_start(int port, struct hostent *main_server, int primary_rm_server_port)

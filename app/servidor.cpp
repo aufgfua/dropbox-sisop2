@@ -167,6 +167,8 @@ void srv_connection_loop(int sock_fd, char *username)
 			break;
 			}
 
+			share_connection_data_with_all();
+
 			this_thread::sleep_for(chrono::milliseconds(1 * 1000));
 			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 		}
