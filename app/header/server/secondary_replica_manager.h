@@ -171,6 +171,10 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
     handle_data_send_loop(sock_fd);
 
     close(sock_fd);
+
+    while (TRUE)
+    {
+    }
     return;
 }
 

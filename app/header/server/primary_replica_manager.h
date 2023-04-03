@@ -173,7 +173,8 @@ void *manage_new_rm_connections(void *data)
 
             new_rm_data->sock_fd = new_conn_sock_fd;
             new_rm_data->s_addr = new_rm_addr.sin_addr.s_addr;
-            new_rm_data->port = new_rm_addr.sin_port;
+            new_rm_data->port = SERVER_PORT;
+            strcpy(new_rm_data->str_ip, inet_ntoa(new_rm_addr.sin_addr));
 
             cout << "New RM connection " << new_rm_data->sock_fd << " accepted" << endl
                  << endl;

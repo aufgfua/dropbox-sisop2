@@ -47,6 +47,8 @@ void print_rm_connection(RM_CONNECTION rm_connection)
     cout << " Socket FD: " << rm_connection.sock_fd;
     cout << ", RM IP: " << inet_ntoa(*(struct in_addr *)&rm_connection.s_addr);
     cout << ", RM Port: " << rm_connection.port << endl
+         << " RM ID: " << rm_connection.id
+         << ", RM String IP: " << rm_connection.str_ip
          << endl
          << endl;
 }
@@ -121,6 +123,10 @@ RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
     }
 
     rm_connections_list_mtx.unlock();
+
+    if (greatest_id_rm_conn == NULL)
+        return &rm_connections[0];
+
     return greatest_id_rm_conn;
 }
 

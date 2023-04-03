@@ -77,7 +77,8 @@ void *start_heartbeat_primary_rm(void *data)
 
         new_heartbeat_conn->sock_fd = new_hb_connection_sock_fd;
         new_heartbeat_conn->s_addr = secondary_rm_addr.sin_addr.s_addr;
-        new_heartbeat_conn->port = secondary_rm_addr.sin_port;
+        new_heartbeat_conn->port = SERVER_PORT;
+        strcpy(new_heartbeat_conn->str_ip, inet_ntoa(secondary_rm_addr.sin_addr));
 
         cout << "Connected to Heartbeat on " << new_hb_connection_sock_fd << "!" << endl;
 
