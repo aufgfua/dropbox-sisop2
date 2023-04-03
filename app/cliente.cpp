@@ -125,6 +125,19 @@ void *cli_connection_loop(void *data)
 	uint32_t run = 0;
 
 	started_connection_loop = TRUE;
+
+	send_OK_packet(sock_fd, OK_PACKET_LOG);
+	send_OK_packet(sock_fd, OK_PACKET_LOG);
+	send_OK_packet(sock_fd, OK_PACKET_LOG);
+	send_OK_packet(sock_fd, OK_PACKET_LOG);
+	send_OK_packet(sock_fd, OK_PACKET_LOG);
+	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
+	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
+	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
+	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
+
+	getchar();
+
 	while (TRUE)
 	{
 		cout << "Run " << run << endl;

@@ -38,7 +38,7 @@ void *handle_client_to_server_messages(void *data)
     while (TRUE)
     {
         redirectMessage(cli_connection_data.sock_fd, srv_connection_data.sock_fd);
-        }
+    }
 }
 
 void *handle_server_to_client_messages(void *data)
