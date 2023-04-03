@@ -195,7 +195,6 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	fe_run_data->srv_address = fe_srv_address;
 
 	pthread_create(&fe_thread, NULL, frontend_main, (void *)fe_run_data);
-	pthread_detach(fe_thread);
 }
 
 int main(int argc, char *argv[])
