@@ -216,12 +216,13 @@ int main(int argc, char *argv[])
 	strcpy(server_ip_string, argv[2]);
 	server = gethostbyname(argv[2]);
 	srv_port = atoi(argv[3]);
+	struct hostent *fe_server = gethostbyname("localhost");
 	fe_port = argc > 4 ? atoi(argv[4]) : srv_port + FRONTEND_SOCKET_OFFSET;
 
 	run_frontend(fe_port, server_ip_string, srv_port);
 
 	cout << "Starting client..." << endl;
-	sock_fd = connect_socket(server, fe_port);
+	sock_fd = connect_socket(fe_server, fe_port);
 
 	cout << "Connected to server" << endl;
 
