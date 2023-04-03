@@ -46,7 +46,8 @@ int get_number_of_packets(int data_size)
 
 char *read_all_bytes(int sockfd, int bytes_to_read)
 {
-    cout << "Reading " << bytes_to_read << " bytes from socket" << endl;
+    if (LOG_MODE)
+        cout << "Reading " << bytes_to_read << " bytes from socket" << endl;
 
     int total_bytes_read = 0;
     char *buffer = (char *)malloc(bytes_to_read);
@@ -60,7 +61,8 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
     {
         int bytes_received = recv(sockfd, buffer + total_bytes_read, bytes_to_read, 0);
 
-        cout << "Bytes received - " << bytes_received << endl;
+        if (LOG_MODE)
+            cout << "Bytes received - " << bytes_received << endl;
 
         if (bytes_received == 0)
         {
@@ -92,12 +94,15 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
 
 int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
 {
-    cout << "Writing " << bytes_to_write << " bytes to socket " << endl;
+    if (LOG_MODE)
+        cout << "Writing " << bytes_to_write << " bytes to socket " << endl;
     int total_bytes_written = 0;
     while (bytes_to_write > 0)
     {
         int bytes_sent = send(sockfd, buffer + total_bytes_written, bytes_to_write, 0);
-        cout << "Bytes sent - " << bytes_sent << endl;
+        if (LOG_MODE)
+            cout << "Bytes sent - " << bytes_sent << endl;
+        cout << "Bytes sent - " << bytes_sent << " on socket " << sockfd << endl;
         if (bytes_sent <= 0)
         {
             // Handle error or connection closed

@@ -114,7 +114,6 @@ void handle_cli_connection(int sock_fd)
     }
     // successfully accepted connection
 
-    pthread_t connection_thread;
     FE_CONNECTION_DATA *cli_conn_data = (FE_CONNECTION_DATA *)malloc(sizeof(FE_CONNECTION_DATA));
 
     cli_conn_data->sock_fd = cli_conn_sock_fd;

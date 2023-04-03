@@ -126,16 +126,8 @@ void *cli_connection_loop(void *data)
 
 	started_connection_loop = TRUE;
 
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	send_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-	wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
-
+	cout << "Client -> FE connection socket " << sock_fd << endl
+		 << endl;
 	getchar();
 
 	while (TRUE)
@@ -187,6 +179,7 @@ void manage_server_connection(int sock_fd, char *username)
 
 	strcpy(user_directory, mount_base_path(username, CLIENT_BASE_DIR));
 	create_folder_if_not_exists(user_directory);
+
 	cout << "User directory: " << user_directory << endl
 		 << endl;
 
