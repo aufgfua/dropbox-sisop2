@@ -127,6 +127,9 @@ void handle_cli_connection(int sock_fd)
 // returns socket file descriptor
 int init_frontend(int port)
 {
+    cout << port << endl;
+    cout << "Initializing frontend server" << endl
+         << endl;
     struct sockaddr_in serv_addr;
     char buffer[BUFFER_SIZE];
     int sock_fd;
