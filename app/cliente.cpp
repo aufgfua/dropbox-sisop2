@@ -183,11 +183,11 @@ void manage_server_connection(int sock_fd, char *username)
 	cout << "User directory: " << user_directory << endl
 		 << endl;
 
-	CLI_CONNECTION_DATA cli_conn_data;
-	cli_conn_data.sock_fd = sock_fd;
-	strcpy(cli_conn_data.username, username);
+	CLI_CONNECTION_DATA *cli_conn_data = (CLI_CONNECTION_DATA *)malloc(sizeof(CLI_CONNECTION_DATA));
+	cli_conn_data->sock_fd = sock_fd;
+	strcpy(cli_conn_data->username, username);
 
-	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)&cli_conn_data);
+	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)cli_conn_data);
 }
 
 void run_frontend(int fe_port, char *srv_ip, int srv_port)
