@@ -17,6 +17,8 @@ char digit_to_asc(int digit)
 }
 char *get_LOCAL_FIX(int sock_fd)
 {
+    char *skip;
+    return skip;
     char LOCAL_FIX[MAX_PATH_SIZE];
     strcpy(LOCAL_FIX, "/RM-");
 
