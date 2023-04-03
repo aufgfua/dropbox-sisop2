@@ -74,6 +74,9 @@ bool started_connection_loop = FALSE;
 
 #include "header/server/server_utils.h"
 
+#include "header/server/secondary_replica_manager.h"
+#include "header/server/primary_replica_manager.h"
+
 #include "header/frontend/redirectMessages.h"
 #include "frontend.h"
 

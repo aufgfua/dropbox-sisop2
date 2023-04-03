@@ -14,6 +14,13 @@ typedef struct STR_CONNECTION_DATA
 	char username[MAX_USERNAME_SIZE];
 } CONNECTION_DATA;
 
+typedef struct STR_RM_CONNECTION
+{
+	unsigned long s_addr;
+	int sock_fd;
+	in_port_t port;
+} RM_CONNECTION;
+
 int connection_id = 0;
 int global_sock_fd;
 
@@ -111,6 +118,7 @@ void srv_connection_loop(int sock_fd, char *username)
 	printf("User directory: %s\n\n", user_directory);
 
 	uint32_t run = 0;
+	started_connection_loop = TRUE;
 	try
 	{
 		while (TRUE)
@@ -143,9 +151,9 @@ void srv_connection_loop(int sock_fd, char *username)
 			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
 		}
 	}
-	catch (const std::exception &e)
+	catch (OutOfSyncException e)
 	{
-		printf("Exception: %s\n", e.what());
+		printf("Out of sync exception: %s\n", e.what());
 	}
 }
 
@@ -194,7 +202,7 @@ void *start_connection(void *data)
 	}
 	catch (exception e)
 	{
-		printf("Exception: %s\n", e.what());
+		printf("Exception starting connection data: %s\n", e.what());
 	}
 	return NULL;
 }
@@ -207,40 +215,31 @@ void manage_connections(int sock_fd)
 
 	cli_len = sizeof(struct sockaddr_in);
 
-	started_connection_loop = TRUE;
-
 	while (TRUE)
 	{
-		try
+		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
+
+		if (new_conn_sock_fd == -1)
 		{
-			new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
-
-			if (new_conn_sock_fd == -1)
-			{
-				printf("ERROR on accept\n");
-			}
-			else
-			{
-				// print all fields from cli_addr
-				// TODO check if this connects correctly
-				// cout << "Connection from " << cli_addr.sin_addr.s_addr << ":" << ntohs(cli_addr.sin_port) << " accepted" << endl;
-
-				pthread_t connection_thread;
-				CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
-
-				new_conn_data->sock_fd = new_conn_sock_fd;
-				new_conn_data->connection_id = connection_id;
-				new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
-				connection_id++;
-
-				printf("Connection %d accepted\n\n", new_conn_data->connection_id);
-
-				pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
-			}
+			printf("ERROR on accept\n");
 		}
-		catch (OutOfSyncException e)
+		else
 		{
-			printf("Out of sync exception: %s\n", e.what());
+			// print all fields from cli_addr
+			// TODO check if this connects correctly
+			// cout << "Connection from " << cli_addr.sin_addr.s_addr << ":" << ntohs(cli_addr.sin_port) << " accepted" << endl;
+
+			pthread_t connection_thread;
+			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
+
+			new_conn_data->sock_fd = new_conn_sock_fd;
+			new_conn_data->connection_id = connection_id;
+			new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
+			connection_id++;
+
+			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
+
+			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
 		}
 	}
 }
@@ -282,16 +281,41 @@ int init_server(int port)
 	return sock_fd;
 }
 
-int main(int argc, char *argv[])
+void primary_replica_manager_start(int argc, char *argv[])
 {
 	int sock_fd;
 
 	int port = argc > 1 ? atoi(argv[1]) : SERVER_PORT;
+	new_rm_connections_port = port + 1000;
 
 	sock_fd = init_server(port);
+	new_rm_connections_sock_fd = init_server(new_rm_connections_port);
+
+	pthread_t new_rm_connections_thread;
+	pthread_create(&new_rm_connections_thread, NULL, manage_new_rm_connections, NULL);
 
 	manage_connections(sock_fd);
 
 	close(sock_fd);
-	return 0;
+	return;
+}
+
+int main(int argc, char *argv[])
+{
+
+	if (argc != 2 && argc != 4)
+	{
+		printf("Usage:\n	> %s <port> // to run as primary RM\n	%s <port> <primary_server_ip> <primary_server_port> // to run as secondary RM\n", argv[0], argv[0]);
+	}
+
+	if (argc == 2)
+	{
+		primary_replica_manager_start(argc, argv);
+		return;
+	}
+	else if (argc == 4)
+	{
+		secondary_replica_manager_start(argc, argv);
+		return;
+	}
 }
