@@ -23,6 +23,8 @@ typedef struct STR_DATA_RETURN
     uint64_t bytes_size;
 } DATA_RETURN;
 
+void handle_restart_packet(int sock_fd);
+
 void print_packet(packet pck)
 {
     printf("Type: %u, Seqn: %u, Total size: %lu, Length: %u, Value: %s\n", pck.type, pck.seqn, pck.total_size, pck.length, pck._payload);
@@ -58,6 +60,8 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
 
         if (bytes_received <= 0)
         {
+            printf("Error reading from socket\n");
+            sleep(1);
             throw "Error reading from socket\n";
             break;
         }
@@ -66,6 +70,8 @@ char *read_all_bytes(int sockfd, int bytes_to_read)
     }
     if (bytes_to_read != 0)
     {
+        printf("Invalid length reading from socket\n");
+        sleep(1);
         throw "Invalid length reading from socket\n";
         return NULL;
     }
@@ -91,6 +97,26 @@ int write_all_bytes(int sockfd, char *buffer, int bytes_to_write)
         bytes_to_write -= bytes_sent;
     }
     return total_bytes_written;
+}
+
+void send_restart_packet(int sock_fd)
+{
+    packet restart_packet = {
+        .type = PACKET_TYPE_DATA,
+        .seqn = 0,
+        .total_size = 1,
+        .length = 0,
+        .restart_loop = TRUE,
+    };
+
+    printf("SENDING RESTART PACKET TO %d\n", sock_fd);
+
+    write_all_bytes(sock_fd, (char *)&restart_packet, sizeof(packet));
+}
+
+bool is_restart_packet(packet p)
+{
+    return p.restart_loop == TRUE;
 }
 
 int convert_type_size(int size, int init_type_size, int final_type_size)
@@ -159,9 +185,17 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
     char *buffer = read_all_bytes(sock_fd, sizeof(packet));
     if (buffer == NULL)
     {
+        printf("Error reading number of packets\n");
+        sleep(1);
         throw "Error reading number of packets";
     }
     packet *number_of_packets_packet = (packet *)buffer;
+
+    if (is_restart_packet(*number_of_packets_packet))
+    {
+        handle_restart_packet(sock_fd);
+    }
+
     NUMBER_OF_PACKETS *number_of_packets = (NUMBER_OF_PACKETS *)number_of_packets_packet->_payload;
 
     // printf("Number of packets: %d\n", number_of_packets->pck_number);
@@ -173,9 +207,17 @@ DATA_RETURN receive_data_with_packets(int sock_fd)
         buffer = read_all_bytes(sock_fd, sizeof(packet));
         if (buffer == NULL)
         {
+            printf("Error reading packet\n");
+            sleep(1);
             throw "Error reading packet";
         }
         packet *pck = (packet *)buffer;
+
+        if (is_restart_packet(*number_of_packets_packet))
+        {
+            handle_restart_packet(sock_fd);
+        }
+
         packets_vector->push_back(*pck);
 
         // printf("Packet %d received\n", pck->seqn);
@@ -212,4 +254,42 @@ T *receive_converted_data_with_packets(int sock_fd)
     T *result = reinterpret_cast<T *>(data_recovered);
 
     return result;
+}
+
+void send_OK_packet(int sock_fd)
+{
+    packet ok_packet = {
+        .type = PACKET_TYPE_DATA,
+        .seqn = 0,
+        .total_size = 1,
+        .length = 0,
+        .restart_loop = FALSE,
+    };
+
+    strcpy(ok_packet._payload, "OK");
+
+    // printf("SENDING OK PACKET TO %d\n", sock_fd);
+
+    write_all_bytes(sock_fd, (char *)&ok_packet, sizeof(packet));
+}
+
+void wait_for_OK_packet(int sock_fd)
+{
+    bool is_ok_packet = FALSE;
+    while (!is_ok_packet)
+    {
+        // printf("Waiting for OK packet from %d\n", sock_fd);
+        DATA_RETURN data_return = receive_data_with_packets(sock_fd);
+        char *data = data_return.data;
+        strcmp(data, "OK") == 0 ? is_ok_packet = TRUE : is_ok_packet = FALSE;
+    }
+    return;
+}
+
+void handle_restart_packet(int sock_fd)
+{
+    // printf("RECEIVED RESTART PACKET\n");
+    send_OK_packet(sock_fd);
+    wait_for_OK_packet(sock_fd);
+    throw OutOfSyncException();
 }

@@ -34,6 +34,8 @@ void send_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory)
     }
     else
     {
+        printf("Unable to open file\n");
+        sleep(1);
         throw "Unable to open file\n";
     }
 }
@@ -71,6 +73,8 @@ void receive_file(int sock_fd, UP_DOWN_COMMAND *up_down_command, char *directory
     }
     else
     {
+        printf("Unable to open file\n");
+        sleep(1);
         throw "Unable to open file\n";
     }
 }

@@ -5,7 +5,17 @@
 #define SOCKET_DEFAULT_PROTOCOL 0
 #define bool int
 
-queue<int> orders;
+typedef struct STR_CLI_CONNECTION_DATA
+{
+	int sock_fd;
+	char username[MAX_USERNAME_SIZE];
+} CLI_CONNECTION_DATA;
+
+queue<int>
+	orders;
+
+pthread_t fe_thread;
+pthread_t cli_connection_thread;
 
 char *user_directory = (char *)malloc(MAX_PATH_SIZE);
 
@@ -98,34 +108,48 @@ void cli_turn(int sock_fd)
 	cli_handle_procedure(sock_fd, procedure);
 }
 
-void cli_connection_loop(int sock_fd, char *username)
+void *cli_connection_loop(void *data)
 {
+	CLI_CONNECTION_DATA *cli_conn_data = (CLI_CONNECTION_DATA *)data;
+	int sock_fd = cli_conn_data->sock_fd;
+	char *username = cli_conn_data->username;
+
 	char turn = START_TURN;
 
 	uint32_t run = 0;
 
+	started_connection_loop = TRUE;
 	while (TRUE)
 	{
-		// printf("\nRun %d - Turn %d\n", run, turn);
-		run++;
-		switch (turn)
+		try
 		{
-		case CLI_TURN:
-		{
-			cli_turn(sock_fd);
-		}
-		break;
-		case SRV_TURN:
-		{
-			PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
-			// printf("Received procedure: %d - ", procedure->proc_id);
-			cli_handle_procedure(sock_fd, procedure);
-		}
-		break;
-		}
+			// printf("\nRun %d - Turn %d\n", run, turn);
+			run++;
+			switch (turn)
+			{
+			case CLI_TURN:
+			{
+				cli_turn(sock_fd);
+			}
+			break;
+			case SRV_TURN:
+			{
+				PROCEDURE_SELECT *procedure = receive_procedure(sock_fd);
+				// printf("Received procedure: %d - ", procedure->proc_id);
+				cli_handle_procedure(sock_fd, procedure);
+			}
+			break;
+			}
 
-		turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
+			turn = (turn == CLI_TURN) ? SRV_TURN : CLI_TURN;
+		}
+		catch (OutOfSyncException e)
+		{
+			printf("Out of sync exception: %s\n", e.what());
+		}
 	}
+
+	close(sock_fd);
 }
 
 void send_username(int sock_fd, char *username)
@@ -145,7 +169,11 @@ void manage_server_connection(int sock_fd, char *username)
 	create_folder_if_not_exists(user_directory);
 	printf("User directory: %s\n\n", user_directory);
 
-	cli_connection_loop(sock_fd, username);
+	CLI_CONNECTION_DATA cli_conn_data;
+	cli_conn_data.sock_fd = sock_fd;
+	strcpy(cli_conn_data.username, username);
+
+	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)&cli_conn_data);
 }
 
 int connect_socket(struct hostent *server, int port)
@@ -199,8 +227,8 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	fe_run_data.fe_port = fe_port;
 	fe_run_data.srv_address = fe_srv_address;
 
-	pthread_t fe_thread;
 	pthread_create(&fe_thread, NULL, frontend_main, (void *)&fe_run_data);
+	pthread_detach(fe_thread);
 }
 
 int main(int argc, char *argv[])
@@ -235,9 +263,8 @@ int main(int argc, char *argv[])
 
 	manage_server_connection(sock_fd, username);
 
-	close(sock_fd);
-
-	return 0;
+	pthread_join(cli_connection_thread, NULL);
+	pthread_join(fe_thread, NULL);
 }
 
 void *get_console_input_order_loop(void *arg)

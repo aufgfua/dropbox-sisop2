@@ -31,6 +31,11 @@ FE_CONNECTION_DATA cli_connection_data, srv_connection_data;
 int global_fe_sock_fd;
 FE_SERVER_ADDRESS global_fe_server_address;
 
+int cont = 0;
+
+mutex cli_read_mtx;
+mutex srv_read_mtx;
+
 void *handle_client_to_server_messages(void *data)
 {
     while (TRUE)

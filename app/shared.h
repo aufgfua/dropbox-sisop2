@@ -55,6 +55,10 @@ T *receive_converted_data_with_packets(int sock_fd);
 #define FE_PORT 50000
 #define SERVER_PORT 40001
 
+bool started_connection_loop = FALSE;
+
+#include "header/shared/exceptions.h"
+
 #include "header/shared/appflow.h"
 #include "header/shared/packets.h"
 
@@ -73,7 +77,8 @@ T *receive_converted_data_with_packets(int sock_fd);
 #include "header/frontend/redirectMessages.h"
 #include "frontend.h"
 
-time_t get_now()
+time_t
+get_now()
 {
     time_t t = time(0); // get time now
     return t;

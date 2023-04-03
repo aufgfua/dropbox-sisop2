@@ -207,31 +207,40 @@ void manage_connections(int sock_fd)
 
 	cli_len = sizeof(struct sockaddr_in);
 
+	started_connection_loop = TRUE;
+
 	while (TRUE)
 	{
-		new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
-
-		if (new_conn_sock_fd == -1)
+		try
 		{
-			printf("ERROR on accept\n");
+			new_conn_sock_fd = accept(sock_fd, (struct sockaddr *)&cli_addr, &cli_len);
+
+			if (new_conn_sock_fd == -1)
+			{
+				printf("ERROR on accept\n");
+			}
+			else
+			{
+				// print all fields from cli_addr
+				// TODO check if this connects correctly
+				// cout << "Connection from " << cli_addr.sin_addr.s_addr << ":" << ntohs(cli_addr.sin_port) << " accepted" << endl;
+
+				pthread_t connection_thread;
+				CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
+
+				new_conn_data->sock_fd = new_conn_sock_fd;
+				new_conn_data->connection_id = connection_id;
+				new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
+				connection_id++;
+
+				printf("Connection %d accepted\n\n", new_conn_data->connection_id);
+
+				pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
+			}
 		}
-		else
+		catch (OutOfSyncException e)
 		{
-			// print all fields from cli_addr
-			// TODO check if this connects correctly
-			// cout << "Connection from " << cli_addr.sin_addr.s_addr << ":" << ntohs(cli_addr.sin_port) << " accepted" << endl;
-
-			pthread_t connection_thread;
-			CONNECTION_DATA *new_conn_data = (CONNECTION_DATA *)malloc(sizeof(CONNECTION_DATA));
-
-			new_conn_data->sock_fd = new_conn_sock_fd;
-			new_conn_data->connection_id = connection_id;
-			new_conn_data->cli_s_addr = cli_addr.sin_addr.s_addr;
-			connection_id++;
-
-			printf("Connection %d accepted\n\n", new_conn_data->connection_id);
-
-			pthread_create(&connection_thread, NULL, start_connection, (void *)new_conn_data);
+			printf("Out of sync exception: %s\n", e.what());
 		}
 	}
 }
