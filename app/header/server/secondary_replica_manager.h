@@ -36,7 +36,6 @@ void files_download_loop(int sock_fd)
         char *base_path = mount_srv_folders_path(get_rm_folders_path(sock_fd));
 
         char *folder_name = get_last_folder_name(up_down_command->path);
-        cout << folder_name << endl;
 
         char *final_path = (char *)malloc(MAX_FILENAME_SIZE);
         strcpy(final_path, base_path);
@@ -59,18 +58,26 @@ void secondary_rm_replicate_state(int sock_fd)
     cout << "Replication finished" << endl;
 }
 
-void secondary_replica_manager_start(int port, struct hostent *main_server, int main_server_port)
+void secondary_replica_manager_start(int port, struct hostent *main_server, int primary_rm_server_port)
 {
 
-    int sock_fd;
+    int sock_fd, heartbeat_sock_fd;
 
-    // TODO connect to main server
+    int primary_rm_handler_port = primary_rm_server_port + NEW_RM_CONNECTIONS_PORT_OFFSET;
+    sock_fd = connect_socket(main_server, primary_rm_handler_port);
 
-    sock_fd = connect_socket(main_server, main_server_port);
+    int primary_heartbeat_server_port = primary_rm_server_port + HEARTBEAT_PORT_OFFSET;
+    heartbeat_sock_fd = start_heartbeat_secondary_rm(main_server, primary_heartbeat_server_port);
+    pthread_t heartbeat_thread;
+    pthread_create(&heartbeat_thread, NULL, secondary_heartbeat_loop, (void *)&heartbeat_sock_fd);
 
     cout << "RM Server -> ";
     secondary_rm_replicate_state(sock_fd);
-    sleep(10);
+
+    while (TRUE)
+    {
+        sleep(1);
+    }
     close(sock_fd);
     return;
 }

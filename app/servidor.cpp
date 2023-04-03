@@ -239,49 +239,12 @@ void manage_connections(int sock_fd)
 }
 
 // returns socket file descriptor
-int init_server(int port)
-{
-	struct sockaddr_in serv_addr;
-	char buffer[BUFFER_SIZE];
-	int sock_fd;
-
-	sock_fd = socket(AF_INET, SOCK_STREAM, SOCKET_DEFAULT_PROTOCOL);
-
-	if (sock_fd == -1)
-	{
-		cout << "ERROR opening socket" << endl
-			 << endl;
-		exit(0);
-	}
-
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(port);
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-
-	bzero(&(serv_addr.sin_zero), BYTE_SIZE);
-
-	int bind_return = bind(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-
-	if (bind_return < 0)
-	{
-		cout << "ERROR on binding" << endl
-			 << endl;
-		exit(0);
-	}
-
-	listen(sock_fd, MAX_WAITING_CONNECTIONS);
-
-	cout << "Server listening on port " << port << endl
-		 << endl;
-
-	return sock_fd;
-}
 
 void primary_replica_manager_start(int port)
 {
 	int sock_fd;
 
-	new_rm_connections_port = port + 1000;
+	new_rm_connections_port = port + NEW_RM_CONNECTIONS_PORT_OFFSET;
 
 	sock_fd = init_server(port);
 	global_sock_fd = sock_fd;
@@ -291,6 +254,10 @@ void primary_replica_manager_start(int port)
 
 	pthread_t new_rm_connections_thread;
 	pthread_create(&new_rm_connections_thread, NULL, manage_new_rm_connections, (void *)&new_rm_connections_sock_fd);
+
+	pthread_t primary_rm_heartbeat_thread;
+	int heartbeat_port = port + HEARTBEAT_PORT_OFFSET;
+	pthread_create(&primary_rm_heartbeat_thread, NULL, start_heartbeat_primary_rm, (void *)&heartbeat_port);
 
 	manage_connections(sock_fd);
 

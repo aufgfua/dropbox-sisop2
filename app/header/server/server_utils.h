@@ -1,4 +1,6 @@
 
+#define NEW_RM_CONNECTIONS_PORT_OFFSET 1000
+
 typedef struct STR_CONNECTION_DATA
 {
     unsigned long cli_s_addr;
