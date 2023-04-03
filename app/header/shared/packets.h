@@ -268,6 +268,8 @@ void send_OK_packet(int sock_fd)
     strcpy(ok_packet._payload, "OK");
 
     write_all_bytes(sock_fd, (char *)&ok_packet, sizeof(packet));
+
+    cout << "OK packet sent" << endl;
 }
 
 void wait_for_OK_packet(int sock_fd)
@@ -276,10 +278,12 @@ void wait_for_OK_packet(int sock_fd)
     while (!is_ok_packet)
     {
 
-        DATA_RETURN data_return = receive_data_with_packets(sock_fd);
-        char *data = data_return.data;
+        packet *possible_ok_packet = (packet *)read_all_bytes(sock_fd, sizeof(packet));
+        char *data = possible_ok_packet->_payload;
+
         strcmp(data, "OK") == 0 ? is_ok_packet = TRUE : is_ok_packet = FALSE;
     }
+    cout << "OK packet received" << endl;
     return;
 }
 

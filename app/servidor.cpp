@@ -70,7 +70,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 		cout << sock_fd << " - Exiting..." << endl
 			 << endl;
 		send_OK_packet(sock_fd);
-		close(sock_fd);
+		sleep(2);
 		return TRUE;
 		break;
 	}
@@ -121,7 +121,7 @@ void srv_connection_loop(int sock_fd, char *username)
 				bool EXIT_NOW = srv_handle_procedure(sock_fd, procedure, user_directory);
 				if (EXIT_NOW)
 				{
-					cout << "Connection " << sock_fd << " closed" << endl
+					cout << "Exit loop now - " << sock_fd << endl
 						 << endl;
 					return;
 				}
@@ -187,7 +187,7 @@ void *start_connection(void *data)
 
 		cout << "Connection " << conn_data->sock_fd << " closed" << endl
 			 << endl;
-		close(conn_data->sock_fd);
+		// close(conn_data->sock_fd);
 	}
 	catch (exception e)
 	{
