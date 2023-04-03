@@ -62,8 +62,10 @@ int connect_socket(struct hostent *server, int port)
     bzero(&(serv_addr.sin_zero), BYTE_SIZE);
 
     int conn_return = -1;
+
     while (conn_return < 0)
     {
+        cout << "Trying to connect to server with ip: " << inet_ntoa(serv_addr.sin_addr) << " and port " << port << endl;
         conn_return = connect(sock_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
         this_thread::sleep_for(chrono::milliseconds(500));
     }
