@@ -42,6 +42,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 			 << endl;
 		sync_files_procedure_srv(sock_fd, user_directory);
 		last_sync[sock_fd] = get_now();
+		send_OK_packet(sock_fd, OK_PACKET_QUIET);
 		break;
 	case PROCEDURE_LIST_SERVER:
 		cout << sock_fd << " - Listing server files..." << endl
@@ -65,6 +66,7 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 			send_files_to_all_rms(rm_sync_up_down_command_vector);
 		}
 		release_sync_dir_control(user_directory);
+		send_OK_packet(sock_fd, OK_PACKET_QUIET);
 	}
 	break;
 	case PROCEDURE_DOWNLOAD_FROM_SERVER:
@@ -91,13 +93,14 @@ int srv_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure, char *user_di
 			send_files_to_all_rms(rm_sync_up_down_command_vector);
 		}
 		release_sync_dir_control(user_directory);
+		send_OK_packet(sock_fd, OK_PACKET_QUIET);
 	}
 	break;
 
 	case PROCEDURE_EXIT:
 		cout << sock_fd << " - Exiting..." << endl
 			 << endl;
-		send_OK_packet(sock_fd);
+		send_OK_packet(sock_fd, OK_PACKET_QUIET);
 		sleep(2);
 		return TRUE;
 		break;

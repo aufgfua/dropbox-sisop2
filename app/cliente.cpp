@@ -34,6 +34,7 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 		send_files_list(sock_fd, user_directory);
 		cli_transaction_loop(sock_fd, user_directory);
 		last_sync = get_now();
+		wait_for_OK_packet(sock_fd, OK_PACKET_QUIET);
 		break;
 
 	case PROCEDURE_LIST_SERVER:
@@ -54,6 +55,8 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 
 		send_single_file(sock_fd, upload_target.c_str(), current_dir, CLIENT_SYNC_UPLOAD);
 
+		wait_for_OK_packet(sock_fd, OK_PACKET_QUIET);
+
 		orders.push(PROCEDURE_SYNC_FILES);
 	}
 	break;
@@ -71,12 +74,14 @@ void cli_handle_procedure(int sock_fd, PROCEDURE_SELECT *procedure)
 		send_data_with_packets(sock_fd, (char *)&desired_file, sizeof(DESIRED_FILE));
 
 		receive_single_file(sock_fd, current_dir);
+
+		wait_for_OK_packet(sock_fd, OK_PACKET_QUIET);
 	}
 	break;
 	case PROCEDURE_EXIT:
 		cout << "Exiting..." << endl
 			 << endl;
-		wait_for_OK_packet(sock_fd);
+		wait_for_OK_packet(sock_fd, OK_PACKET_QUIET);
 		close(sock_fd);
 		break;
 	}

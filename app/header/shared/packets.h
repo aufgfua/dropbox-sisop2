@@ -2,6 +2,9 @@
 #define PACKET_TYPE_DATA 1
 #define PACKET_TYPE_CONTROL 2
 
+#define OK_PACKET_QUIET 0
+#define OK_PACKET_LOG 1
+
 typedef struct STR_NUMBER_OF_PACKETS
 {
     uint32_t pck_number;
@@ -287,7 +290,7 @@ vector<TRV> receive_vector_of_data_with_packets(int sock_fd)
     return result;
 }
 
-void send_OK_packet(int sock_fd)
+void send_OK_packet(int sock_fd, int mode)
 {
     packet ok_packet = {
         .type = PACKET_TYPE_CONTROL,
@@ -301,10 +304,13 @@ void send_OK_packet(int sock_fd)
 
     write_all_bytes(sock_fd, (char *)&ok_packet, sizeof(packet));
 
-    cout << "OK packet sent" << endl;
+    if (mode == OK_PACKET_LOG)
+    {
+        cout << "OK packet sent" << endl;
+    }
 }
 
-void wait_for_OK_packet(int sock_fd)
+void wait_for_OK_packet(int sock_fd, int mode)
 {
     bool is_ok_packet = FALSE;
     while (!is_ok_packet)
@@ -315,14 +321,17 @@ void wait_for_OK_packet(int sock_fd)
 
         strcmp(data, "OK") == 0 ? is_ok_packet = TRUE : is_ok_packet = FALSE;
     }
-    cout << "OK packet received" << endl;
+
+    if (mode == OK_PACKET_LOG)
+    {
+        cout << "OK packet received" << endl;
+    }
     return;
 }
 
 void handle_restart_packet(int sock_fd)
 {
-
-    send_OK_packet(sock_fd);
-    wait_for_OK_packet(sock_fd);
+    send_OK_packet(sock_fd, OK_PACKET_LOG);
+    wait_for_OK_packet(sock_fd, OK_PACKET_LOG);
     throw OutOfSyncException();
 }
