@@ -43,6 +43,7 @@ void *handle_client_to_server_messages(void *data)
 
     while (TRUE)
     {
+        cout << "FE - Server sock_fd: " << srv_connection_data.sock_fd << endl;
         redirectMessage(cli_connection_data.sock_fd, srv_connection_data.sock_fd);
     }
 }
@@ -51,6 +52,7 @@ void *handle_server_to_client_messages(void *data)
 {
     while (TRUE)
     {
+        cout << "FE - Server sock_fd: " << srv_connection_data.sock_fd << endl;
         redirectMessage(srv_connection_data.sock_fd, cli_connection_data.sock_fd);
     }
 }
@@ -64,6 +66,7 @@ FE_SERVER_ADDRESS get_server_address()
 void connect_to_server(FE_SERVER_ADDRESS srv_address)
 {
     int sock_fd, read_len, write_len;
+    cout << "FE CONNECTING TO SERVER ON IP: " << srv_address.ip_addr << " PORT: " << srv_address.port << endl;
     struct hostent *server = gethostbyname(srv_address.ip_addr);
     int port = srv_address.port;
 
@@ -176,14 +179,14 @@ int frontend_connection_procedure(int port, int sock_fd)
 
     handle_cli_connection(sock_fd);
 
-    FE_SERVER_ADDRESS srv_connection_data = get_server_address();
-
-    connect_to_server(srv_connection_data);
-
     pthread_t cli_thread;
 
     cout << "Start cli-fe connection" << endl;
     pthread_create(&cli_thread, NULL, handle_client_to_server_messages, (void *)NULL);
+
+    FE_SERVER_ADDRESS srv_connection_data = get_server_address();
+
+    connect_to_server(srv_connection_data);
 
     return sock_fd;
 }
