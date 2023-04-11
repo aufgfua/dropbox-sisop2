@@ -114,11 +114,11 @@ void primary_rm_replicate_state_controller(int sock_fd)
 
     increment_want_to_sync_RM();
 
-    while (get_syncing_clients() > 0)
+    /*while (get_syncing_clients() > 0)
     {
         cout << "Waiting for clients to sync..." << endl;
         this_thread::sleep_for(chrono::milliseconds(1 * 1000));
-    }
+    }*/
 
     primary_rm_replicate_state(sock_fd);
 

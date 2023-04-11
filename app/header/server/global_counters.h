@@ -7,6 +7,7 @@ mutex want_to_sync_RM_mtx;
 
 int get_syncing_clients()
 {
+    return 0;
     syncing_clients_mtx.lock();
     int syncing_clients_copy = syncing_clients;
     syncing_clients_mtx.unlock();
@@ -15,6 +16,7 @@ int get_syncing_clients()
 
 int get_want_to_sync_RM()
 {
+    return 0;
     want_to_sync_RM_mtx.lock();
     int want_to_sync_RM_copy = want_to_sync_RM;
     want_to_sync_RM_mtx.unlock();
@@ -23,6 +25,7 @@ int get_want_to_sync_RM()
 
 void increment_syncing_clients()
 {
+    return;
     while (get_want_to_sync_RM() > 0)
     {
         this_thread::sleep_for(chrono::milliseconds(1 * 1000));
@@ -35,6 +38,7 @@ void increment_syncing_clients()
 
 void decrement_syncing_clients()
 {
+    return;
     syncing_clients_mtx.lock();
     syncing_clients--;
     syncing_clients_mtx.unlock();
@@ -42,6 +46,7 @@ void decrement_syncing_clients()
 
 void increment_want_to_sync_RM()
 {
+    return;
     want_to_sync_RM_mtx.lock();
     want_to_sync_RM++;
     can_sync_clients = FALSE;
@@ -50,6 +55,7 @@ void increment_want_to_sync_RM()
 
 void decrement_want_to_sync_RM()
 {
+    return;
     want_to_sync_RM_mtx.lock();
     want_to_sync_RM--;
     if (want_to_sync_RM == 0)
