@@ -33,8 +33,14 @@ int cont = 0;
 mutex cli_read_mtx;
 mutex srv_read_mtx;
 
+void *handle_server_to_client_messages(void *data);
+
 void *handle_client_to_server_messages(void *data)
 {
+    cout << "Start fe-srv connection" << endl;
+    pthread_t srv_thread;
+    pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
+
     while (TRUE)
     {
         redirectMessage(cli_connection_data.sock_fd, srv_connection_data.sock_fd);
@@ -174,13 +180,10 @@ int frontend_connection_procedure(int port, int sock_fd)
 
     connect_to_server(srv_connection_data);
 
-    pthread_t cli_thread, srv_thread;
+    pthread_t cli_thread;
 
     cout << "Start cli-fe connection" << endl;
     pthread_create(&cli_thread, NULL, handle_client_to_server_messages, (void *)NULL);
-
-    cout << "Start fe-srv connection" << endl;
-    pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
 
     return sock_fd;
 }
