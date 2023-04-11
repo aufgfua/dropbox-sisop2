@@ -38,6 +38,10 @@ void *handle_server_to_client_messages(void *data);
 void *handle_client_to_server_messages(void *data)
 {
 
+    while (!srv_connection_data.sock_fd || !cli_connection_data.sock_fd)
+    {
+        cout << "Waiting" << endl;
+    }
     while (TRUE)
     {
         cout << "cl -> srv" << endl;
@@ -47,6 +51,10 @@ void *handle_client_to_server_messages(void *data)
 
 void *handle_server_to_client_messages(void *data)
 {
+    while (!srv_connection_data.sock_fd || !cli_connection_data.sock_fd)
+    {
+        cout << "Waiting" << endl;
+    }
     while (TRUE)
     {
         cout << "srv -> cl" << endl;
