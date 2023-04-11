@@ -40,7 +40,7 @@ void share_connection_data_with_all()
     {
         try
         {
-            cout << "PRIM-RM-CONN-SYNC " << rm.sock_fd << endl;
+            // cout << "PRIM-RM-CONN-SYNC " << rm.sock_fd << endl;
             send_rm_procedure_select(rm.sock_fd, RM_PROC_CONTROL_DATA);
             share_connection_data(rm.sock_fd);
         }

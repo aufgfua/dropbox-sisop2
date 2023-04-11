@@ -107,7 +107,6 @@ void remove_rm_connection_s_addr(unsigned long s_addr)
 
 RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
 {
-    RM_CONNECTION *greatest_id_rm_conn = NULL;
     rm_connections_list_mtx.lock();
     bool found = FALSE;
 
@@ -121,22 +120,27 @@ RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
          { if(a.id != b.id) return a.id < b.id;
         return a.s_addr < b.s_addr; });
 
+    int chosen_index = 0;
     for (RM_CONNECTION rm_conn : rm_connections)
     {
         if (rm_conn.id > id)
         {
-            greatest_id_rm_conn = &rm_conn;
             found = TRUE;
             break;
         }
+        chosen_index++;
     }
 
     rm_connections_list_mtx.unlock();
 
     if (!found)
+    {
+        cout << "NOT FOUND - Returning first RM connection" << endl;
         return &rm_connections.at(0);
+    }
 
-    return greatest_id_rm_conn;
+    cout << "FOUND - Returning RM connection with ID: " << (&rm_connections.at(chosen_index))->id << endl;
+    return &rm_connections.at(chosen_index);
 }
 
 void insert_client_connection(CONNECTION_DATA *conn_data)

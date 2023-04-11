@@ -107,7 +107,7 @@ void handle_data_send_loop(int sock_fd)
             break;
             case RM_PROC_CONTROL_DATA:
             {
-                cout << "SEC-RM-CONN-SYNC" << endl;
+                // cout << "SEC-RM-CONN-SYNC" << endl;
                 rm_receive_control_data(sock_fd);
             }
             break;
@@ -145,7 +145,7 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
     int my_id = *(receive_converted_data_with_packets<int>(sock_fd));
     cout << "My ID: " << my_id << endl;
     unsigned long my_s_addr = *(receive_converted_data_with_packets<unsigned long>(sock_fd));
-    cout << "My s_addr: " << my_s_addr << endl;
+    cout << "My s_addr: " << inet_ntoa(*(struct in_addr *)&my_s_addr) << endl;
     // send local port to primary RM
     uint16_t uint16_port = port;
     send_data_with_packets(sock_fd, (char *)&uint16_port, sizeof(uint16_port));
@@ -163,6 +163,7 @@ void secondary_replica_manager_start(int port, struct hostent *main_server, int 
     ELECTION_PARTICIPANT *election_participant = (ELECTION_PARTICIPANT *)malloc(sizeof(ELECTION_PARTICIPANT));
 
     election_participant->main_mode_port = port;
+    election_participant->s_addr = my_s_addr;
     election_participant->id = my_id;
     pthread_t election_thread;
     pthread_create(&election_thread, NULL, run_election_server, (void *)election_participant);

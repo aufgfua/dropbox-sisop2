@@ -115,7 +115,7 @@ void *secondary_heartbeat_loop(void *data)
                 throw PrimaryRMDiedException();
                 break;
             }
-            cout << "HB> " << sock_fd << " ---- Receive: <3 - ";
+            // cout << "HB> " << sock_fd << " ---- Receive: <3 - ";
 
             // SEND
             char response[HEARTBEAT_BUFFER_SIZE];
@@ -125,7 +125,7 @@ void *secondary_heartbeat_loop(void *data)
                 std::cerr << "Error sending heartbeat response" << std::endl;
                 continue;
             }
-            cout << "Send: <3" << endl;
+            // cout << "Send: <3" << endl;
         }
     }
     catch (PrimaryRMDiedException e)

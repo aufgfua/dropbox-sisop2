@@ -26,16 +26,27 @@ void become_new_primary()
     // Ok, it came back to me
     // Become primary
 
-    cout << "I am the new primary!" << endl;
+    cout << endl
+         << "I WON the election!!!!" << endl
+         << endl;
+}
+
+void print_vote(RING_ELECTION_VOTE *vote)
+{
+    cout << "Election finished: " << vote->election_finished;
+    cout << " - Election winner s_addr: " << inet_ntoa(*(struct in_addr *)&vote->election_winner_s_addr);
+    cout << " - Election winner port: " << vote->election_winner_port;
+    cout << " - Election winner id: " << vote->election_winner_id;
+    cout << " - Election participant greatest id: " << vote->election_participant_greatest_id << endl;
 }
 
 void send_vote(RING_ELECTION_VOTE *vote)
 {
     sent_vote = TRUE;
 
-    cout << "CK1" << endl;
+    // cout << "CK1" << endl;
     RM_CONNECTION *next_node = get_next_greatest_id_rm_connection(my_id_global);
-    cout << "CK2" << endl;
+    // cout << "CK2" << endl;
     if (next_node == NULL)
     {
         cout << "No next node" << endl;
@@ -47,9 +58,10 @@ void send_vote(RING_ELECTION_VOTE *vote)
 
         cout << "Next node IP: " << next_node->str_ip << " and port: " << next_node->rm_reconnection_port + ELECTION_PORT_OFFSET << endl;
         int sock_fd = connect_socket(gethostbyname(next_node->str_ip), next_node->rm_reconnection_port + ELECTION_PORT_OFFSET);
-        cout << "CK3" << endl;
-        send_data_with_packets(sock_fd, (char *)&vote, sizeof(RING_ELECTION_VOTE));
-        cout << "CK4" << endl;
+        // cout << "CK3" << endl;
+        send_data_with_packets(sock_fd, (char *)vote, sizeof(RING_ELECTION_VOTE));
+        // cout << "CK4" << endl;
+        close(sock_fd);
     }
 }
 
@@ -83,26 +95,33 @@ void *run_election_server(void *data)
         cout << "Received connection to participate on election - " << participant_fd << "!" << endl;
 
         RING_ELECTION_VOTE *vote = receive_converted_data_with_packets<RING_ELECTION_VOTE>(participant_fd);
-
+        // print_vote(vote);
         if (vote->election_finished)
         {
             if (vote->election_winner_id != my_id)
             {
                 // adapt to new primary
-                cout << "New primary data: " << vote->election_winner_s_addr << ":" << vote->election_winner_port << " - with id: " << vote->election_winner_id << endl;
+                cout << endl
+                     << "I LOST the election!!!!" << endl;
+                cout << "New primary data: " << inet_ntoa(*(struct in_addr *)&vote->election_winner_s_addr) << ":" << vote->election_winner_port << " - with id: " << vote->election_winner_id << endl;
+
+                send_vote(vote);
             }
             else
             {
-                become_new_primary();
+                cout << "Finished ring communication!" << endl
+                     << endl;
             }
         }
         else if (!vote->election_finished)
         {
             if (vote->election_participant_greatest_id == my_id)
             {
+                become_new_primary();
                 vote->election_finished = TRUE;
                 vote->election_winner_s_addr = my_election_participant->s_addr;
                 vote->election_winner_port = my_election_participant->main_mode_port;
+                vote->election_winner_id = my_id;
                 send_vote(vote);
             }
             else if (vote->election_participant_greatest_id > my_id)
@@ -125,7 +144,8 @@ void *run_election_server(void *data)
 
 void begin_election()
 {
-    cout << "Starting election..." << endl;
+    cout << "Starting election..." << endl
+         << endl;
     RING_ELECTION_VOTE *vote = (RING_ELECTION_VOTE *)malloc(sizeof(RING_ELECTION_VOTE));
     vote->election_finished = FALSE;
     vote->election_participant_greatest_id = my_id_global;
