@@ -23,6 +23,10 @@ int my_id_global;
 
 void become_new_primary()
 {
+    // Ok, it came back to me
+    // Become primary
+
+    cout << "I am the new primary!" << endl;
 }
 
 void send_vote(RING_ELECTION_VOTE *vote)
@@ -30,13 +34,23 @@ void send_vote(RING_ELECTION_VOTE *vote)
     sent_vote = TRUE;
 
     cout << "CK1" << endl;
-    RM_CONNECTION next_node = *(get_next_greatest_id_rm_connection(my_id_global));
+    RM_CONNECTION *next_node = get_next_greatest_id_rm_connection(my_id_global);
     cout << "CK2" << endl;
-    cout << "Next node IP: " << next_node.str_ip << " and port: " << SERVER_PORT + ELECTION_PORT_OFFSET << endl;
-    int sock_fd = connect_socket(gethostbyname(next_node.str_ip), SERVER_PORT + ELECTION_PORT_OFFSET);
-    cout << "CK3" << endl;
-    send_data_with_packets(sock_fd, (char *)&vote, sizeof(RING_ELECTION_VOTE));
-    cout << "CK4" << endl;
+    if (next_node == NULL)
+    {
+        cout << "No next node" << endl;
+        become_new_primary();
+        return;
+    }
+    else
+    {
+
+        cout << "Next node IP: " << next_node->str_ip << " and port: " << next_node->rm_reconnection_port + ELECTION_PORT_OFFSET << endl;
+        int sock_fd = connect_socket(gethostbyname(next_node->str_ip), next_node->rm_reconnection_port + ELECTION_PORT_OFFSET);
+        cout << "CK3" << endl;
+        send_data_with_packets(sock_fd, (char *)&vote, sizeof(RING_ELECTION_VOTE));
+        cout << "CK4" << endl;
+    }
 }
 
 void *run_election_server(void *data)
@@ -79,10 +93,7 @@ void *run_election_server(void *data)
             }
             else
             {
-                // Ok, it came back to me
-                // Become primary
-
-                cout << "I am the new primary!" << endl;
+                become_new_primary();
             }
         }
         else if (!vote->election_finished)

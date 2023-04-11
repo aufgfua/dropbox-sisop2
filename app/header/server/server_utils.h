@@ -38,6 +38,7 @@ typedef struct STR_RM_CONNECTION
     unsigned long s_addr;
     int sock_fd;
     in_port_t port;
+    in_port_t rm_reconnection_port;
     int id;
     char str_ip[INET_ADDRSTRLEN];
 } RM_CONNECTION;
@@ -108,6 +109,13 @@ RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
 {
     RM_CONNECTION *greatest_id_rm_conn = NULL;
     rm_connections_list_mtx.lock();
+    bool found = FALSE;
+
+    if (rm_connections.size() == 0 || rm_connections.size() == 1)
+    {
+        rm_connections_list_mtx.unlock();
+        return NULL;
+    }
 
     sort(rm_connections.begin(), rm_connections.end(), [](const RM_CONNECTION &a, const RM_CONNECTION &b)
          { if(a.id != b.id) return a.id < b.id;
@@ -118,14 +126,15 @@ RM_CONNECTION *get_next_greatest_id_rm_connection(int id)
         if (rm_conn.id > id)
         {
             greatest_id_rm_conn = &rm_conn;
+            found = TRUE;
             break;
         }
     }
 
     rm_connections_list_mtx.unlock();
 
-    if (greatest_id_rm_conn == NULL)
-        return &rm_connections[0];
+    if (!found)
+        return &rm_connections.at(0);
 
     return greatest_id_rm_conn;
 }
@@ -257,13 +266,15 @@ vector<UP_DOWN_COMMAND> define_sync_files(vector<USR_FILE> local_files, vector<U
 
 char *get_last_folder_name(char *file_path_chars)
 {
+
     char *char_folder_name = (char *)malloc(MAX_FILENAME_SIZE);
 
     string file_path(file_path_chars);
     size_t pos = file_path.find_last_of("/");
     if (pos == string::npos)
     {
-        cout << "Error - couldn't find last folder name" << endl;
+        cout << "Error - couldn't find last folder name on : " << file_path << endl;
+
         strcpy(char_folder_name, file_path.c_str());
         return char_folder_name;
     }

@@ -40,7 +40,7 @@ void share_connection_data_with_all()
     {
         try
         {
-            cout << "Sending connection data to RM " << rm.sock_fd << endl;
+            cout << "PRIM-RM-CONN-SYNC " << rm.sock_fd << endl;
             send_rm_procedure_select(rm.sock_fd, RM_PROC_CONTROL_DATA);
             share_connection_data(rm.sock_fd);
         }
@@ -131,15 +131,16 @@ void *handle_new_rm_connection(void *data)
     rm_data->id = get_rm_connection_greatest_id() + 1;
 
     int sock_fd = rm_data->sock_fd;
-    int port = rm_data->port;
     unsigned long s_addr = rm_data->s_addr;
 
-    insert_rm_connection(rm_data);
     send_data_with_packets(sock_fd, (char *)&(rm_data->id), sizeof(int));
     send_data_with_packets(sock_fd, (char *)&(rm_data->s_addr), sizeof(unsigned long));
-    cout << "New RM connection " << sock_fd << " handled" << endl
+    rm_data->rm_reconnection_port = *receive_converted_data_with_packets<int>(sock_fd);
+    rm_data->port = rm_data->rm_reconnection_port;
+    cout << "New RM connection " << sock_fd << " on " << rm_data->str_ip << ":" << rm_data->rm_reconnection_port << " handled" << endl
          << endl;
 
+    insert_rm_connection(rm_data);
     primary_rm_replicate_state_controller(sock_fd);
 
     return NULL;
@@ -173,7 +174,6 @@ void *manage_new_rm_connections(void *data)
 
             new_rm_data->sock_fd = new_conn_sock_fd;
             new_rm_data->s_addr = new_rm_addr.sin_addr.s_addr;
-            new_rm_data->port = SERVER_PORT;
             strcpy(new_rm_data->str_ip, inet_ntoa(new_rm_addr.sin_addr));
 
             cout << "New RM connection " << new_rm_data->sock_fd << " accepted" << endl

@@ -176,11 +176,11 @@ void manage_server_connection(int sock_fd, char *username)
 	cout << "User directory: " << user_directory << endl
 		 << endl;
 
-	CLI_CONNECTION_DATA cli_conn_data;
-	cli_conn_data.sock_fd = sock_fd;
-	strcpy(cli_conn_data.username, username);
+	CLI_CONNECTION_DATA *cli_conn_data = (CLI_CONNECTION_DATA *)malloc(sizeof(CLI_CONNECTION_DATA));
+	cli_conn_data->sock_fd = sock_fd;
+	strcpy(cli_conn_data->username, username);
 
-	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)&cli_conn_data);
+	pthread_create(&cli_connection_thread, NULL, cli_connection_loop, (void *)cli_conn_data);
 }
 
 void run_frontend(int fe_port, char *srv_ip, int srv_port)
@@ -189,11 +189,11 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	strcpy(fe_srv_address.ip_addr, srv_ip);
 	fe_srv_address.port = srv_port;
 
-	FE_RUN_DATA fe_run_data;
-	fe_run_data.fe_port = fe_port;
-	fe_run_data.srv_address = fe_srv_address;
+	FE_RUN_DATA *fe_run_data = (FE_RUN_DATA *)malloc(sizeof(FE_RUN_DATA));
+	fe_run_data->fe_port = fe_port;
+	fe_run_data->srv_address = fe_srv_address;
 
-	pthread_create(&fe_thread, NULL, frontend_main, (void *)&fe_run_data);
+	pthread_create(&fe_thread, NULL, frontend_main, (void *)fe_run_data);
 	pthread_detach(fe_thread);
 }
 

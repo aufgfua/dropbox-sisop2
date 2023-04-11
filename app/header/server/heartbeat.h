@@ -30,7 +30,7 @@ void *primary_heartbeat_loop(void *data)
             continue;
         }
 
-        cout << "HB> " << heartbeat_sock_fd << " ---- Send: <3 - ";
+        cout << "HB> " << heartbeat_sock_fd << " --- ";
 
         // RECEIVE
         char response[HEARTBEAT_BUFFER_SIZE];
@@ -49,8 +49,6 @@ void *primary_heartbeat_loop(void *data)
 
             break;
         }
-
-        cout << "Receive: <3" << endl;
     }
     return NULL;
 }

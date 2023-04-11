@@ -292,8 +292,9 @@ void primary_replica_manager_start(int port)
 	pthread_create(&new_rm_connections_thread, NULL, manage_new_rm_connections, (void *)&new_rm_connections_sock_fd);
 
 	pthread_t primary_rm_heartbeat_thread;
-	int heartbeat_port = port + HEARTBEAT_PORT_OFFSET;
-	pthread_create(&primary_rm_heartbeat_thread, NULL, start_heartbeat_primary_rm, (void *)&heartbeat_port);
+	int *heartbeat_port = (int *)malloc(sizeof(int));
+	*heartbeat_port = port + HEARTBEAT_PORT_OFFSET;
+	pthread_create(&primary_rm_heartbeat_thread, NULL, start_heartbeat_primary_rm, (void *)heartbeat_port);
 
 	manage_connections(sock_fd);
 
