@@ -117,6 +117,10 @@ void cli_turn(int sock_fd)
 void *cli_connection_loop(void *data)
 {
 	CLI_CONNECTION_DATA *cli_conn_data = (CLI_CONNECTION_DATA *)data;
+	cout << cli_conn_data->username << " and " << cli_conn_data->sock_fd << endl;
+	cout << cli_conn_data->username << " and " << cli_conn_data->sock_fd << endl;
+	cout << cli_conn_data->username << " and " << cli_conn_data->sock_fd << endl;
+	cout << cli_conn_data->username << " and " << cli_conn_data->sock_fd << endl;
 	int sock_fd = cli_conn_data->sock_fd;
 	char *username = cli_conn_data->username;
 
