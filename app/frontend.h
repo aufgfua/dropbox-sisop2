@@ -37,13 +37,10 @@ void *handle_server_to_client_messages(void *data);
 
 void *handle_client_to_server_messages(void *data)
 {
-    cout << "Start fe-srv connection" << endl;
-    pthread_t srv_thread;
-    pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
 
     while (TRUE)
     {
-        cout << "FE - Server sock_fd: " << srv_connection_data.sock_fd << endl;
+        cout << "cl -> srv" << endl;
         redirectMessage(cli_connection_data.sock_fd, srv_connection_data.sock_fd);
     }
 }
@@ -52,7 +49,7 @@ void *handle_server_to_client_messages(void *data)
 {
     while (TRUE)
     {
-        cout << "FE - Server sock_fd: " << srv_connection_data.sock_fd << endl;
+        cout << "srv -> cl" << endl;
         redirectMessage(srv_connection_data.sock_fd, cli_connection_data.sock_fd);
     }
 }
@@ -185,6 +182,10 @@ int frontend_connection_procedure(int port, int sock_fd)
     pthread_create(&cli_thread, NULL, handle_client_to_server_messages, (void *)NULL);
 
     FE_SERVER_ADDRESS srv_connection_data = get_server_address();
+
+    cout << "Start fe-srv connection" << endl;
+    pthread_t srv_thread;
+    pthread_create(&srv_thread, NULL, handle_server_to_client_messages, (void *)NULL);
 
     connect_to_server(srv_connection_data);
 
