@@ -198,7 +198,6 @@ void run_frontend(int fe_port, char *srv_ip, int srv_port)
 	fe_run_data->srv_address = fe_srv_address;
 
 	pthread_create(&fe_thread, NULL, frontend_main, (void *)fe_run_data);
-	pthread_detach(fe_thread);
 }
 
 int main(int argc, char *argv[])
@@ -226,7 +225,7 @@ int main(int argc, char *argv[])
 
 	sock_fd = connect_socket(gethostbyname("localhost"), fe_port);
 
-	cout << "Connected to server" << endl;
+	cout << "Connected to server FE on socket: " << sock_fd << endl;
 
 	pthread_t input_thread;
 	pthread_create(&input_thread, NULL, get_console_input_order_loop, (void *)NULL);
